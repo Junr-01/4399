@@ -1,0 +1,11 @@
+# Local agent instructions and development skills
+AGENTS.md
+/.agents/
+/skills-lock.json
+
+# System and editor temporary files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
