@@ -1,0 +1,15 @@
+{
+  "name": "4399",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "4399 · 和AI玩几把",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "node --watch scripts/server.mjs",
+    "start": "node scripts/server.mjs",
+    "launch": "node scripts/launch.mjs",
+    "stop": "node scripts/stop.mjs",
+    "test": "node --test"
+  }
+}

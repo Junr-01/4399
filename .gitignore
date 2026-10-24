@@ -1,6 +1,9 @@
 # Local agent instructions and development skills
 AGENTS.md
-/.agents/
+/.agents/*
+!/.agents/plugins/
+/.agents/plugins/*
+!/.agents/plugins/marketplace.json
 /skills-lock.json
 
 # System and editor temporary files
@@ -9,3 +12,13 @@ Thumbs.db
 *.swp
 *.swo
 *~
+
+# Local runtime and generated files
+node_modules/
+coverage/
+*.log
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]

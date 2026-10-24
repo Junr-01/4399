@@ -1,0 +1,154 @@
+:root {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #283127;
+  background: #f8f9f5;
+  font-synthesis: none;
+  --ink: #283127;
+  --shadow: 0 18px 45px #2c402012;
+}
+
+* { box-sizing: border-box; }
+
+/* Three equal viewport rows. The picker is centered on the middle row. */
+body {
+  margin: 0;
+  height: 100svh;
+  display: grid;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border: 0;
+  background: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible { outline: 3px solid #829d56; outline-offset: 5px; }
+
+.site-header {
+  grid-area: 1 / 1;
+  align-self: start;
+  height: 104px;
+  width: 100%;
+  max-width: 1120px;
+  padding: 0 52px;
+  display: flex;
+  align-items: center;
+  margin: 0 auto;
+}
+
+.brand { display: flex; align-items: center; gap: 11px; user-select: none; }
+.brand-mark { display: block; width: 38px; height: 38px; }
+.brand-name { font-size: 24px; font-weight: 760; letter-spacing: -1px; }
+.brand-name > span { color: #8ca568; }
+
+main {
+  grid-area: 2 / 1;
+  align-self: center;
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  display: grid;
+}
+
+.game-picker { width: 100%; min-width: 0; }
+.intro { text-align: center; margin: 25px 24px 29px; }
+.intro h1 { font-size: 27px; letter-spacing: 1px; font-weight: 580; margin: 10px 0; }
+.carousel { position: relative; overflow: hidden; touch-action: pan-y; padding: 15px 0 25px; }
+.carousel-track { --card: min(440px, 66vw); position: relative; height: var(--card); }
+
+.game-card {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: var(--card);
+  aspect-ratio: 1;
+  border-radius: 28px;
+  overflow: hidden;
+  padding: 0;
+  text-align: left;
+  transform: translateX(calc(-50% + var(--offset) * (100% + 26px))) scale(.92);
+  opacity: .5;
+  transition: transform .45s cubic-bezier(.2, .7, .2, 1), opacity .4s, box-shadow .4s;
+  box-shadow: 0 8px 18px #28312708;
+  user-select: none;
+}
+
+.game-card.is-selected {
+  transform: translateX(-50%) scale(1);
+  opacity: 1;
+  box-shadow: var(--shadow);
+  outline: 1px solid #fff;
+  outline-offset: 6px;
+}
+
+/* A card wrapping around the back of the carousel should not cross its center. */
+.game-card.is-repositioning { transition: none; }
+.cover { width: 100%; height: 100%; position: relative; background: var(--cover-bg); color: var(--cover-ink); overflow: hidden; }
+.cover-title { position: absolute; z-index: 1; left: 8%; top: 7.5%; }
+.cover-title h2 { font-size: clamp(19px, 3.5vw, 30px); margin: 0 0 7px; font-weight: 650; letter-spacing: 2px; }
+.cover-title span { font-size: 9px; letter-spacing: 2.8px; opacity: .48; font-weight: 600; }
+.cover-art { position: absolute; inset: 18% 0 0; width: 100%; height: 82%; pointer-events: none; }
+.cover-bottom { position: absolute; left: 8%; right: 8%; bottom: 6%; display: flex; justify-content: space-between; font-size: 9px; letter-spacing: 1px; opacity: .55; align-items: center; }
+.cover-bottom em { font-style: normal; border: 1px solid currentColor; border-radius: 50px; padding: 4px 8px; font-size: 8px; }
+.navigator { display: flex; align-items: center; justify-content: center; gap: 23px; margin: 26px 0 0; }
+.circle { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid #e0e5d6; border-radius: 50%; background: #ffffff66; transition: background .2s; }
+.circle:hover { background: #e9efdf; }
+.circle svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+.dots { display: flex; gap: 9px; align-items: center; }
+.dot { padding: 10px 0; width: 6px; }
+.dot::after { content: ""; display: block; width: 5px; height: 5px; background: #d8dece; border-radius: 50%; transition: width .3s; }
+.dot.is-selected { width: 20px; }
+.dot.is-selected::after { background: #7c8e64; width: 20px; border-radius: 8px; }
+
+.game-dialog { border: 1px solid #e3e8db; border-radius: 24px; padding: 32px; background: #fafbf7; max-width: 350px; width: calc(100% - 40px); text-align: center; color: var(--ink); box-shadow: var(--shadow); }
+.game-dialog::backdrop { background: #2730204d; backdrop-filter: blur(6px); }
+.dialog-icon { margin: 0 auto 20px; width: 46px; height: 46px; }
+.game-dialog h2 { font-size: 20px; font-weight: 550; }
+.game-dialog p { font-size: 12px; line-height: 1.9; color: #7a846e; margin: 13px 0 24px; }
+.return-button { background: var(--ink); color: #f7faef; border-radius: 15px; padding: 15px 22px; width: 100%; font-size: 13px; }
+.return-button:hover { background: #44543a; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+@media (min-width: 1400px) {
+  .intro { margin-top: 35px; }
+  .carousel-track { --card: 460px; }
+}
+
+@media (max-width: 700px) {
+  .site-header { padding: 0 27px; height: 87px; }
+  .brand-name { font-size: 22px; }
+  .brand-mark { width: 34px; height: 34px; }
+  .intro { margin: 22px 20px 24px; }
+  .intro h1 { font-size: 24px; }
+  .carousel-track { --card: min(380px, 73vw); }
+  .game-card { border-radius: 23px; transform: translateX(calc(-50% + var(--offset) * (100% + 17px))) scale(.91); }
+  .game-card.is-selected { transform: translateX(-50%) scale(1); }
+  .navigator { margin-top: 24px; gap: 20px; }
+  .cover-title span { font-size: 8px; letter-spacing: 2px; }
+}
+
+/* Fit the approved layout into shorter browser panels without covering the header. */
+@media (max-height: 800px) {
+  .carousel-track { --card: min(440px, 66vw, max(120px, calc(100svh - 390px))); }
+}
+
+@media (max-width: 700px) and (max-height: 800px) {
+  .carousel-track { --card: min(380px, 73vw, max(120px, calc(100svh - 340px))); }
+}
+
+/* Very short windows scroll rather than hiding controls. */
+@media (max-height: 480px) {
+  body { height: auto; min-height: 100svh; display: flex; flex-direction: column; }
+  .site-header { flex-shrink: 0; }
+  main { flex: 1; padding: 12px 0 32px; }
+  .intro { margin-top: 0; }
+  .intro h1 { margin-top: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; }
+}

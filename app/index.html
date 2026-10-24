@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f8f9f5">
+    <title>4399 · 和AI玩几把</title>
+    <link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/styles.css">
+    <script type="module" src="/app.mjs"></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="brand" aria-label="4399 游戏馆">
+        <img class="brand-mark" src="/assets/icon.svg" alt="" width="38" height="38">
+        <span class="brand-name">4399<span>.</span></span>
+      </div>
+    </header>
+    <main>
+      <section class="game-picker" aria-labelledby="page-title">
+        <div class="intro"><h1 id="page-title">和AI玩几把</h1></div>
+        <div class="carousel" role="region" aria-roledescription="轮播" aria-label="游戏选择">
+          <div class="carousel-track" id="game-track"></div>
+        </div>
+        <nav class="navigator" aria-label="选择游戏">
+          <button class="circle" id="previous-game" type="button" aria-label="上一款游戏">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg>
+          </button>
+          <div class="dots" id="game-dots"></div>
+          <button class="circle" id="next-game" type="button" aria-label="下一款游戏">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg>
+          </button>
+        </nav>
+        <p class="visually-hidden" id="selection-status" role="status" aria-live="polite" aria-atomic="true"></p>
+      </section>
+      <noscript><p>请启用 JavaScript 以选择游戏。</p></noscript>
+    </main>
+    <dialog class="game-dialog" id="game-dialog" aria-labelledby="game-dialog-title" aria-describedby="game-dialog-description">
+      <div class="dialog-icon" aria-hidden="true"><img src="/assets/icon.svg" alt="" width="46" height="46"></div>
+      <h2 id="game-dialog-title"></h2>
+      <p id="game-dialog-description">这款游戏正在准备中，接入后就能从这里开始。</p>
+      <form method="dialog"><button class="return-button" type="submit" autofocus>回到游戏馆</button></form>
+    </dialog>
+  </body>
+</html>
