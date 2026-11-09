@@ -1,4 +1,5 @@
 import { configuredPort, identity } from './server.mjs';
+import { setTimeout as delay } from 'node:timers/promises';
 
 export const url = `http://127.0.0.1:${configuredPort()}`;
 
@@ -17,4 +18,15 @@ export async function liveService() {
     throw new Error(`${url} 已被其他服务或另一份 4399 占用，请先处理端口冲突。`);
   }
   return health;
+}
+
+export async function stopService(health) {
+  try { process.kill(health.pid, 'SIGTERM'); }
+  catch (error) { if (error.code !== 'ESRCH') throw error; }
+  for (let attempt = 0; attempt < 40; attempt++) {
+    await delay(50);
+    const current = await liveService();
+    if (!current || current.pid !== health.pid) return;
+  }
+  throw new Error('4399 服务尚未退出，请稍后重试。');
 }

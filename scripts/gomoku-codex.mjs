@@ -1,0 +1,211 @@
+import { spawn } from 'node:child_process';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createInterface } from 'node:readline';
+
+const instructions = `你是 4399 五子棋的人机对手。收到棋局后，为 AI 执色的一方选择一手。
+黑棋先行，双方交替在空交叉点落一子。横、竖、斜连成五子或以上即获胜，不设禁手。棋盘下满且无人获胜则为平局。
+以最新棋谱为准，棋谱可能因悔棋而缩短。行和列均从左上角开始，编号为 0 到棋盘尺寸减一。
+直接分析输入中的棋局，只返回一个未被占用的交叉点坐标。无需调用工具。`;
+
+function unavailable(message) {
+  return Object.assign(new Error(message), { userMessage: message });
+}
+
+function startClient(cwd) {
+  const child = spawn(process.env.CODEX_BIN || 'codex', [
+    'app-server', '--listen', 'stdio://',
+    '--disable', 'shell_tool', '--disable', 'apps', '--disable', 'hooks',
+    '--disable', 'plugins', '--disable', 'multi_agent', '--disable', 'multi_agent_v2',
+    '-c', 'mcp_servers={}', '-c', 'web_search="disabled"',
+  ], { cwd, stdio: ['pipe', 'pipe', 'ignore'] });
+  const pending = new Map();
+  const listeners = new Set();
+  const ended = new AbortController();
+  let nextId = 0;
+
+  function fail(error) {
+    if (ended.signal.aborted) return;
+    ended.abort(error);
+    for (const finish of pending.values()) finish(error);
+  }
+
+  child.on('error', (error) => fail(unavailable(error.code === 'ENOENT'
+    ? '找不到 Codex CLI。请安装 Codex CLI，或用 CODEX_BIN 指定它的位置。'
+    : '无法启动 Codex。')));
+  child.stdin.on('error', () => {
+    fail(new Error('与 Codex 的连接已断开。'));
+    child.kill();
+  });
+  child.once('close', () => {
+    fail(new Error('与 Codex 的连接已断开。'));
+    rm(cwd, { recursive: true, force: true }).catch(() => {});
+  });
+
+  function notify(message) {
+    if (!ended.signal.aborted) child.stdin.write(JSON.stringify(message) + '\n');
+  }
+
+  createInterface({ input: child.stdout }).on('line', (line) => {
+    let message;
+    try { message = JSON.parse(line); } catch { return; }
+    if (message.method && message.id !== undefined) {
+      notify({ id: message.id, error: { code: -32601, message: 'Gomoku does not handle server requests.' } });
+    } else if (message.method) {
+      for (const listen of listeners) listen(message);
+    } else {
+      pending.get(message.id)?.(message.error ? new Error(message.error.message) : null, message.result);
+    }
+  });
+
+  function request(method, params) {
+    return new Promise((resolve, reject) => {
+      ended.signal.throwIfAborted();
+      const id = ++nextId;
+      const timeout = setTimeout(() => finish(new Error('Codex 连接超时，请重试。')), 12_000);
+      function finish(error, result) {
+        clearTimeout(timeout);
+        pending.delete(id);
+        if (error) reject(error);
+        else resolve(result);
+      }
+      pending.set(id, finish);
+      notify({ id, method, params });
+    });
+  }
+
+  return { request, notify, listeners, ended: ended.signal, close: () => child.kill() };
+}
+
+async function playTurn(client, threadId, config, position, signal) {
+  const { promise, resolve } = Promise.withResolvers();
+  let finalText;
+  const listen = ({ method, params }) => {
+    if (params?.threadId !== threadId) return;
+    if (method === 'item/completed' && params.item.type === 'agentMessage') finalText = params.item.text;
+    if (method === 'turn/completed') resolve(params.turn.status);
+  };
+  const abort = () => resolve('cancelled');
+  client.listeners.add(listen);
+  signal.addEventListener('abort', abort, { once: true });
+  try {
+    signal.throwIfAborted();
+    const coordinate = { type: 'integer', minimum: 0, maximum: position.size - 1 };
+    const { turn } = await client.request('turn/start', {
+      threadId,
+      model: config.model,
+      effort: config.effort,
+      input: [{ type: 'text', text: JSON.stringify(position) }],
+      outputSchema: {
+        type: 'object',
+        properties: { row: coordinate, col: coordinate },
+        required: ['row', 'col'],
+        additionalProperties: false,
+      },
+    });
+    const status = await promise;
+    if (status === 'cancelled') {
+      client.request('turn/interrupt', { threadId, turnId: turn.id }).catch(() => {});
+      signal.throwIfAborted();
+    }
+    if (status !== 'completed') throw new Error('AI 未能完成落子。');
+    return JSON.parse(finalText);
+  } finally {
+    signal.removeEventListener('abort', abort);
+    client.listeners.delete(listen);
+  }
+}
+
+export function createCodexOpponent(version) {
+  let connection;
+  let closed = false;
+
+  function connect() {
+    if (closed) throw new Error('游戏服务已关闭。');
+    if (connection) return connection;
+    const startup = (async () => {
+      const cwd = await mkdtemp(join(tmpdir(), '4399-codex-'));
+      const client = startClient(cwd);
+      client.ended.addEventListener('abort', clearConnection, { once: true });
+      try {
+        await client.request('initialize', { clientInfo: { name: '4399', version } });
+        client.notify({ method: 'initialized' });
+        return client;
+      } catch (error) {
+        client.close();
+        throw error;
+      }
+    })();
+    function clearConnection() {
+      if (connection === startup) connection = undefined;
+    }
+    connection = startup;
+    startup.catch(clearConnection);
+    return startup;
+  }
+
+  async function catalog() {
+    const client = await connect();
+    const { account, requiresOpenaiAuth } = await client.request('account/read', { refreshToken: false });
+    if (requiresOpenaiAuth && !account) throw unavailable('请先运行 codex login 登录，再重试。');
+    const models = [];
+    let cursor;
+    do {
+      const page = await client.request('model/list', { limit: 50, cursor });
+      for (const item of page.data) {
+        const efforts = item.supportedReasoningEfforts.map(({ reasoningEffort }) => reasoningEffort);
+        if (!efforts.length) continue;
+        models.push({
+          id: item.model,
+          name: item.displayName,
+          efforts,
+          defaultEffort: efforts.includes(item.defaultReasoningEffort) ? item.defaultReasoningEffort : efforts[0],
+          isDefault: item.isDefault,
+        });
+      }
+      cursor = page.nextCursor;
+    } while (cursor);
+    if (!models.length) throw unavailable('当前 Codex 登录没有可选模型。');
+    return models;
+  }
+
+  function openMatch(config) {
+    let session;
+
+    function dispose() {
+      if (!session) return;
+      const { client, threadId } = session;
+      session = undefined;
+      client.request('thread/unsubscribe', { threadId }).catch(() => {});
+    }
+
+    async function move(position, cancel) {
+      const client = await connect();
+      const signal = AbortSignal.any([cancel, client.ended, AbortSignal.timeout(90_000)]);
+      try {
+        signal.throwIfAborted();
+        if (session?.client !== client) {
+          const { thread } = await client.request('thread/start', {
+            model: config.model, ephemeral: true, sandbox: 'read-only',
+            approvalPolicy: 'never', developerInstructions: instructions,
+          });
+          session = { client, threadId: thread.id };
+        }
+        return await playTurn(client, session.threadId, config, position, signal);
+      } catch (error) {
+        dispose();
+        throw error;
+      }
+    }
+
+    return { move, dispose };
+  }
+
+  function close() {
+    closed = true;
+    connection?.then(client => client.close(), () => {});
+  }
+
+  return { catalog, openMatch, close };
+}

@@ -3,10 +3,12 @@ import { createServer } from 'node:http';
 import { readFile, realpath } from 'node:fs/promises';
 import { dirname, extname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createCodexOpponent } from './gomoku-codex.mjs';
+import { createGomokuApi } from './gomoku.mjs';
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const identity = createHash('sha256').update(root).digest('hex').slice(0, 16);
-const { version } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+export const { version } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
 const mimeTypes = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -25,8 +27,9 @@ export function configuredPort() {
   return Number(value);
 }
 
-export function createGameServer() {
-  return createServer(async (request, response) => {
+export function createGameServer({ codex = createCodexOpponent(version) } = {}) {
+  const gomoku = createGomokuApi(codex);
+  const server = createServer(async (request, response) => {
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('Cache-Control', 'no-cache');
     response.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; base-uri 'none'; object-src 'none'");
@@ -34,16 +37,17 @@ export function createGameServer() {
       response.writeHead(status, { 'Content-Type': type });
       response.end(request.method === 'HEAD' ? undefined : body);
     };
-    if (!['GET', 'HEAD'].includes(request.method)) {
-      response.setHeader('Allow', 'GET, HEAD');
-      send(405, 'Method not allowed');
-      return;
-    }
     let pathname;
     try {
       pathname = decodeURIComponent(new URL(request.url, 'http://127.0.0.1').pathname);
     } catch {
       send(400, 'Invalid path');
+      return;
+    }
+    if (pathname.startsWith('/api/gomoku/')) return gomoku.handle(request, response, pathname);
+    if (!['GET', 'HEAD'].includes(request.method)) {
+      response.setHeader('Allow', 'GET, HEAD');
+      send(405, 'Method not allowed');
       return;
     }
     if (pathname === '/health') {
@@ -79,10 +83,12 @@ export function createGameServer() {
       }
     }
   });
+  server.once('close', gomoku.close);
+  return server;
 }
 
-export async function startServer(port = configuredPort()) {
-  const server = createGameServer();
+export async function startServer(port = configuredPort(), options) {
+  const server = createGameServer(options);
   await new Promise((resolveStart, reject) => {
     server.once('error', reject);
     server.listen(port, '127.0.0.1', resolveStart);
@@ -95,7 +101,7 @@ if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.m
     const server = await startServer();
     console.log(`4399 · http://127.0.0.1:${server.address().port}/`);
     const stop = () => {
-      server.close(() => process.exit(0));
+      server.close();
       server.closeIdleConnections();
     };
     process.once('SIGINT', stop);
