@@ -3,8 +3,9 @@ import { createServer } from 'node:http';
 import { readFile, realpath } from 'node:fs/promises';
 import { dirname, extname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { createCodexOpponent } from './gomoku-codex.mjs';
+import { createCodexOpponent } from './codex-opponent.mjs';
 import { createGomokuApi } from './gomoku.mjs';
+import { createXiangqiApi } from './xiangqi.mjs';
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const identity = createHash('sha256').update(root).digest('hex').slice(0, 16);
@@ -29,6 +30,7 @@ export function configuredPort() {
 
 export function createGameServer({ codex = createCodexOpponent(version) } = {}) {
   const gomoku = createGomokuApi(codex);
+  const xiangqi = createXiangqiApi(codex);
   const server = createServer(async (request, response) => {
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('Cache-Control', 'no-cache');
@@ -45,6 +47,7 @@ export function createGameServer({ codex = createCodexOpponent(version) } = {}) 
       return;
     }
     if (pathname.startsWith('/api/gomoku/')) return gomoku.handle(request, response, pathname);
+    if (pathname.startsWith('/api/xiangqi/')) return xiangqi.handle(request, response, pathname);
     if (!['GET', 'HEAD'].includes(request.method)) {
       response.setHeader('Allow', 'GET, HEAD');
       send(405, 'Method not allowed');
@@ -83,7 +86,11 @@ export function createGameServer({ codex = createCodexOpponent(version) } = {}) 
       }
     }
   });
-  server.once('close', gomoku.close);
+  server.once('close', () => {
+    gomoku.close();
+    xiangqi.close();
+    codex.close();
+  });
   return server;
 }
 

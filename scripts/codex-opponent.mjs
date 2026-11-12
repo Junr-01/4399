@@ -4,10 +4,23 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 
-const instructions = `你是 4399 五子棋的人机对手。收到棋局后，为 AI 执色的一方选择一手。
+const gomokuInstructions = `你是 4399 五子棋的人机对手。收到棋局后，为 AI 执色的一方选择一手。
 黑棋先行，双方交替在空交叉点落一子。横、竖、斜连成五子或以上即获胜，不设禁手。棋盘下满且无人获胜则为平局。
 以最新棋谱为准，棋谱可能因悔棋而缩短。行和列均从左上角开始，编号为 0 到棋盘尺寸减一。
 直接分析输入中的棋局，只返回一个未被占用的交叉点坐标。无需调用工具。`;
+
+const xiangqiInstructions = `你是 4399 中国象棋的人机对手，按中国象棋协会《象棋竞赛规则（2020版）》对弈。红方先走。
+每回合以最新输入为准。board 是 90 个点的数组，按黑上红下逐行排列，每行 9 点。大写是红方，小写是黑方，null 表示空点。k 为将帅，a 为士仕，e 为象相，h 为马，r 为车，c 为炮，p 为卒兵。from 和 to 是数组中的点号。
+从 legal 列表为 aiSide 选一着，优先将死、解将或取得子力优势。若 adjudication 要求你变着，选择能打破循环的着法，并遵循其中的闲着要求。
+直接返回所选着法的编号，格式为 {"move":整数}。无需调用工具。`;
+
+function outputSchema(game, position) {
+  const coordinate = maximum => ({ type: 'integer', minimum: 0, maximum });
+  const properties = game === 'xiangqi'
+    ? { move: coordinate(position.legal.length - 1) }
+    : { row: coordinate(position.size - 1), col: coordinate(position.size - 1) };
+  return { type: 'object', properties, required: Object.keys(properties), additionalProperties: false };
+}
 
 function unavailable(message) {
   return Object.assign(new Error(message), { userMessage: message });
@@ -51,7 +64,7 @@ function startClient(cwd) {
     let message;
     try { message = JSON.parse(line); } catch { return; }
     if (message.method && message.id !== undefined) {
-      notify({ id: message.id, error: { code: -32601, message: 'Gomoku does not handle server requests.' } });
+      notify({ id: message.id, error: { code: -32601, message: '4399 does not handle server requests.' } });
     } else if (message.method) {
       for (const listen of listeners) listen(message);
     } else {
@@ -78,7 +91,7 @@ function startClient(cwd) {
   return { request, notify, listeners, ended: ended.signal, close: () => child.kill() };
 }
 
-async function playTurn(client, threadId, config, position, signal) {
+async function playTurn(client, threadId, config, game, position, signal) {
   const { promise, resolve } = Promise.withResolvers();
   let finalText;
   const listen = ({ method, params }) => {
@@ -91,18 +104,12 @@ async function playTurn(client, threadId, config, position, signal) {
   signal.addEventListener('abort', abort, { once: true });
   try {
     signal.throwIfAborted();
-    const coordinate = { type: 'integer', minimum: 0, maximum: position.size - 1 };
     const { turn } = await client.request('turn/start', {
       threadId,
       model: config.model,
       effort: config.effort,
       input: [{ type: 'text', text: JSON.stringify(position) }],
-      outputSchema: {
-        type: 'object',
-        properties: { row: coordinate, col: coordinate },
-        required: ['row', 'col'],
-        additionalProperties: false,
-      },
+      outputSchema: outputSchema(game, position),
     });
     const status = await promise;
     if (status === 'cancelled') {
@@ -170,7 +177,7 @@ export function createCodexOpponent(version) {
     return models;
   }
 
-  function openMatch(config) {
+  function openMatch(config, game) {
     let session;
 
     function dispose() {
@@ -188,11 +195,11 @@ export function createCodexOpponent(version) {
         if (session?.client !== client) {
           const { thread } = await client.request('thread/start', {
             model: config.model, ephemeral: true, sandbox: 'read-only',
-            approvalPolicy: 'never', developerInstructions: instructions,
+            approvalPolicy: 'never', developerInstructions: game === 'xiangqi' ? xiangqiInstructions : gomokuInstructions,
           });
           session = { client, threadId: thread.id };
         }
-        return await playTurn(client, session.threadId, config, position, signal);
+        return await playTurn(client, session.threadId, config, game, position, signal);
       } catch (error) {
         dispose();
         throw error;

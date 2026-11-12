@@ -2,14 +2,14 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "4399",
   "version": "0.2.0",
-  "description": "在 Codex 右侧浏览器打开 4399 游戏馆，和 AI 玩几把。可选择 Codex 模型和思考强度进行五子棋人机对局。",
+  "description": "在 Codex 右侧浏览器打开 4399 游戏馆，选择模型和思考强度，与 AI 对弈五子棋和中国象棋。",
   "extensions": {
     "com.openai": {
       "requires_local_executor": true,
       "interface": {
         "displayName": "4399",
         "shortDescription": "和AI玩几把",
-        "longDescription": "在 Codex 右侧浏览器中打开亮色、简约的游戏馆，选择小游戏。五子棋支持棋盘尺寸、先手、模型和思考强度配置，以及对局中的悔棋和重新开始。",
+        "longDescription": "在 Codex 右侧浏览器中打开亮色、简约的游戏馆。五子棋和中国象棋支持选择模型、思考强度和执棋方，以及对局中的悔棋和重新开始。",
         "category": "Productivity",
         "brandColor": "#829768",
         "defaultPrompt": ["打开 4399 游戏馆"]

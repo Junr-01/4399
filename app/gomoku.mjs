@@ -1,6 +1,7 @@
+import { effortName, effortOption, escapeHtml as html, selectModel } from './game-models.mjs';
+
 const main = document.querySelector('#gomoku');
 const api = '/api/gomoku';
-const efforts = { none: '无', minimal: '极低', low: '低', medium: '中', high: '高', xhigh: '极高', max: '最大', ultra: '超强' };
 const draft = { size: 15, first: 'you', model: '', effort: '' };
 let models = [];
 let match = null;
@@ -10,7 +11,6 @@ let error = '';
 let poll;
 let revision = 0;
 
-const html = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const disabled = value => value ? 'disabled' : '';
 const opposite = color => color === 'black' ? 'white' : 'black';
 
@@ -35,9 +35,7 @@ async function loadModels() {
 }
 
 function applyModelSelection() {
-  const model = models.find(item => item.id === draft.model) ?? models.find(item => item.isDefault) ?? models[0];
-  draft.model = model.id;
-  if (!model.efforts.includes(draft.effort)) draft.effort = model.defaultEffort;
+  selectModel(models, draft);
 }
 
 function stone(color, last = false) {
@@ -99,7 +97,7 @@ function setupView() {
       <h2 id="setup-title">对局配置</h2>
       ${choices('size', '棋盘尺寸', [[9, '9 × 9'], [13, '13 × 13'], [15, '15 × 15']])}
       ${picker('model', '对手模型', models.map(item => [item.id, item.name]))}
-      ${picker('effort', '思考强度', currentEfforts.map(value => [value, efforts[value] ? `${efforts[value]}（${value}）` : value]))}
+      ${picker('effort', '思考强度', currentEfforts.map(value => [value, effortOption(value)]))}
       ${choices('first', '先手', [['you', '我先下'], ['ai', 'AI 先下'], ['random', '随机']])}
       <p class="match-error" role="status">${html(error)}</p>
       ${error && !models.length
@@ -134,7 +132,7 @@ function playView() {
 
 function render() {
   const config = match?.config;
-  const meta = setup ? '' : `<span class="table-meta">${config.size} × ${config.size} · ${html(config.modelName)} · ${html(efforts[config.effort] ?? config.effort)}</span>`;
+  const meta = setup ? '' : `<span class="table-meta">${config.size} × ${config.size} · ${html(config.modelName)} · ${html(effortName(config.effort))}</span>`;
   main.innerHTML = `<div class="game-table">
     <div class="table-heading"><h1>五子棋</h1>${meta}</div>
     ${setup ? setupView() : playView()}
