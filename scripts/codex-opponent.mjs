@@ -14,11 +14,17 @@ const xiangqiInstructions = `你是 4399 中国象棋的人机对手，按中国
 从 legal 列表为 aiSide 选一着，优先将死、解将或取得子力优势。若 adjudication 要求你变着，选择能打破循环的着法，并遵循其中的闲着要求。
 直接返回所选着法的编号，格式为 {"move":整数}。无需调用工具。`;
 
+const chessInstructions = `你是 4399 国际象棋的人机对手。使用标准国际象棋规则，白方先走。三次重复或双方各 50 着未动兵也未吃子时自动判和。
+fen 是当前完整局面，aiSide 是你的棋色。以最新输入为准，玩家可能已经悔棋。recentMoves 是近期棋谱，legal 是本回合可用着法。from、to 使用 a1 到 h8 坐标。升变字段 q、r、b、n 分别表示后、车、象、马。
+评估合法着法并为你的棋色选一着。只返回该着的编号，格式为 {"move":整数}。无需调用工具。`;
+
+const instructions = { gomoku: gomokuInstructions, xiangqi: xiangqiInstructions, chess: chessInstructions };
+
 function outputSchema(game, position) {
   const coordinate = maximum => ({ type: 'integer', minimum: 0, maximum });
-  const properties = game === 'xiangqi'
-    ? { move: coordinate(position.legal.length - 1) }
-    : { row: coordinate(position.size - 1), col: coordinate(position.size - 1) };
+  const properties = game === 'gomoku'
+    ? { row: coordinate(position.size - 1), col: coordinate(position.size - 1) }
+    : { move: coordinate(position.legal.length - 1) };
   return { type: 'object', properties, required: Object.keys(properties), additionalProperties: false };
 }
 
@@ -195,7 +201,7 @@ export function createCodexOpponent(version) {
         if (session?.client !== client) {
           const { thread } = await client.request('thread/start', {
             model: config.model, ephemeral: true, sandbox: 'read-only',
-            approvalPolicy: 'never', developerInstructions: game === 'xiangqi' ? xiangqiInstructions : gomokuInstructions,
+            approvalPolicy: 'never', developerInstructions: instructions[game],
           });
           session = { client, threadId: thread.id };
         }

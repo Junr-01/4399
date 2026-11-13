@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f8f9f5">
+    <title>国际象棋 · 4399</title>
+    <link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/chess.css">
+    <script type="module" src="/chess.mjs"></script>
+  </head>
+  <body class="chess-page">
+    <svg class="chess-symbols" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="0" height="0">
+      <defs>
+        <symbol id="piece-k" viewBox="0 0 48 48">
+          <path d="M22 6h4v4h5v4h-5v7h-4v-7h-5v-4h5Z"/>
+          <path d="M16 32c-3-3-6-5.9-6-9.5a6.1 6.1 0 0 1 8.7-5.6l5.3 2.6 5.3-2.6a6.1 6.1 0 0 1 8.7 5.6c0 3.6-3 6.5-6 9.5v4H16Z"/>
+          <path d="M14 35h20l2.4 5H11.6Z"/>
+          <path class="piece-engraving" d="M17 29.5h14M15.5 37.8h17M24 21v8.5"/>
+        </symbol>
+        <symbol id="piece-q" viewBox="0 0 48 48">
+          <path d="M10 15l7.7 7.2L24 11l6.3 11.2L38 15l-4.6 13.7-1.1 5.3H15.7l-1.1-5.3Z"/>
+          <circle cx="10" cy="14.5" r="2.5"/><circle cx="24" cy="10" r="2.5"/><circle cx="38" cy="14.5" r="2.5"/>
+          <path d="M14.5 34h19l2.7 6H11.8Z"/>
+          <path class="piece-engraving" d="M15 29h18M15.5 37.6h17"/>
+        </symbol>
+        <symbol id="piece-r" viewBox="0 0 48 48">
+          <path d="M12 10h5.5v4.5h4V10h5v4.5h4V10H36v9l-5 4.5v10h-14v-10L12 19Z"/>
+          <path d="M15 33.5h18l3 6.5H12Z"/>
+          <path class="piece-engraving" d="M14.2 18.2h19.6M18 24h12M15.5 37.5h17"/>
+        </symbol>
+        <symbol id="piece-b" viewBox="0 0 48 48">
+          <circle cx="24" cy="8.5" r="2.4"/>
+          <path d="M24 11c4.5 3.4 9.2 7.8 9.2 13.1 0 4.7-3.8 7-7 7.5h-4.4c-3.2-.5-7-2.8-7-7.5 0-5.3 4.7-9.7 9.2-13.1Z"/>
+          <path d="M17 31.5h14l1.7 4.2 3.3 4.3H12l3.3-4.3Z"/>
+          <path class="piece-engraving" d="m26.8 16.8-5.1 6.4M17 35.8h14"/>
+        </symbol>
+        <symbol id="piece-n" viewBox="0 0 48 48">
+          <path d="M14.7 34.5c1.8-4.6 5.7-8.5 9-12.6l-4.1 1-4 2.6-5.1-3.6 4.8-8 5.3-3.4 1.3-4.2 4.3 4c7.5 1.5 11.6 7.7 10 14.2l-2.4 10Z"/>
+          <path d="M14.5 34.5h19l2.7 5.5H11.8Z"/>
+          <path class="piece-engraving" d="M27 13.9c4.2 1.7 6.2 5.1 5.8 9.6M13.7 21l2 .7M15.6 37.6h17"/>
+          <circle class="piece-eye" cx="19.5" cy="16.8" r="1.15"/>
+        </symbol>
+        <symbol id="piece-p" viewBox="0 0 48 48">
+          <path d="M24 10a5.6 5.6 0 0 1 3.2 10.2c1.9 1.1 3 2.6 3 4.6h-2.7c.7 4.4 2.6 7.2 5.9 10.2H14.6c3.3-3 5.2-5.8 5.9-10.2h-2.7c0-2 1.1-3.5 3-4.6A5.6 5.6 0 0 1 24 10Z"/>
+          <path d="M14.5 34.5h19l2.7 5.5H11.8Z"/>
+          <path class="piece-engraving" d="M19.5 24.7h9M15.8 37.6h16.4"/>
+        </symbol>
+      </defs>
+    </svg>
+    <header class="chess-header">
+      <a href="/" class="brand"><img src="/assets/icon.svg" width="29" height="29" alt=""><span>4399<span>.</span></span></a>
+      <a class="back-link" href="/">← 游戏馆</a>
+    </header>
+    <main id="chess"></main>
+  </body>
+</html>
