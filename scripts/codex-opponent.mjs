@@ -18,7 +18,13 @@ const chessInstructions = `你是 4399 国际象棋的人机对手。使用标�
 fen 是当前完整局面，aiSide 是你的棋色。以最新输入为准，玩家可能已经悔棋。recentMoves 是近期棋谱，legal 是本回合可用着法。from、to 使用 a1 到 h8 坐标。升变字段 q、r、b、n 分别表示后、车、象、马。
 评估合法着法并为你的棋色选一着。只返回该着的编号，格式为 {"move":整数}。无需调用工具。`;
 
-const instructions = { gomoku: gomokuInstructions, xiangqi: xiangqiInstructions, chess: chessInstructions };
+const junqiInstructions = `你是 4399 军棋翻棋的人机对手。每回合以最新公开局面为准，玩家可能已经悔棋。board 按从上到下、从左到右排列，共 12 行，每行 5 点，编号从 0 到 59。null 是空点，"dark" 是暗子，明子用 color 和 type 表示。sides 是双方阵营，flips 是双方各自上次翻到的颜色，mines 是各色剩余地雷数，quiet 是连续无翻棋和无棋子离场的着数，recentMoves 是最近的公开行动。
+未定阵营时只能翻暗子。某一方连续两次翻到同色就执该色，若翻完仍未定色，最后翻棋方执最后翻出的颜色。随后每着可翻暗子或走己方明子。公路一格，铁路可直行多格，工兵可沿畅通铁路转弯，棋子会挡路，行营内棋子免受攻击，大本营可进出。
+普通棋子按 commander（司令）、general（军长）、division（师长）、brigade（旅长）、regiment（团长）、battalion（营长）、company（连长）、platoon（排长）、engineer（工兵）从强到弱，强者留在交战点，同级同归于尽。bomb（炸弹）碰子同归于尽，工兵挖 mine（地雷）并留下，只有工兵和炸弹可以排雷。军旗和地雷不能移动。
+敌方三雷清除后可夺取已翻开的 flag（军旗），夺旗即胜，即使炸弹夺旗。对方可移动棋子全灭或无合法行动也胜，双方同时全灭或连续 30 着未翻棋、无棋子离场则和棋。
+从 legal 中选择一着，翻棋含 to，走棋含 from 和 to。只返回该着的编号，格式为 {"move":整数}。无需调用工具。`;
+
+const instructions = { gomoku: gomokuInstructions, xiangqi: xiangqiInstructions, chess: chessInstructions, junqi: junqiInstructions };
 
 function outputSchema(game, position) {
   const coordinate = maximum => ({ type: 'integer', minimum: 0, maximum });

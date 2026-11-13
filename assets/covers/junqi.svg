@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 300">
+  <defs>
+    <pattern id="tracks" width="45" height="42" patternUnits="userSpaceOnUse">
+      <path d="M0 0H45M0 0V42" fill="none" stroke="#a3a68f" stroke-width="1.5"/>
+      <rect x="3" y="4" width="39" height="34" rx="5" fill="none" stroke="#afb19a" stroke-width=".7"/>
+    </pattern>
+  </defs>
+  <rect x="22" y="18" width="276" height="272" rx="20" fill="#d9d9c0"/>
+  <rect x="22" y="10" width="276" height="272" rx="20" fill="#f3f0e2"/>
+  <rect x="47" y="30" width="225" height="232" rx="4" fill="url(#tracks)"/>
+  <path d="M47 123H273m-226 7h226" fill="none" stroke="#878e72" stroke-width="2"/>
+  <path d="M47 126.5H273" fill="none" stroke="#878e72" stroke-width="7" stroke-dasharray="1 4"/>
+  <g transform="translate(63 71) rotate(-11)">
+    <rect y="5" width="112" height="71" rx="10" fill="#aa9e85"/>
+    <rect width="112" height="71" rx="10" fill="#f9f6e8" stroke="#b4ad97"/>
+    <path d="m56 17 13 18-13 18-13-18Z" fill="none" stroke="#818669" stroke-width="2"/>
+  </g>
+  <g transform="translate(151 112) rotate(9)">
+    <rect y="5" width="113" height="73" rx="10" fill="#91a3a6"/>
+    <rect width="113" height="73" rx="10" fill="#e2ecee" stroke="#99aeb3"/>
+    <path d="M39 24h35M39 36h35M39 48h35" fill="none" stroke="#4c707e" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="48" cy="24" r="3" fill="#4c707e"/>
+    <circle cx="65" cy="36" r="3" fill="#4c707e"/>
+    <circle cx="54" cy="48" r="3" fill="#4c707e"/>
+  </g>
+  <g transform="translate(89 179) rotate(-7)">
+    <rect y="5" width="113" height="73" rx="10" fill="#bc9286"/>
+    <rect width="113" height="73" rx="10" fill="#f2e2d8" stroke="#c19a8c"/>
+    <path d="M43 56V18m0 4c13-8 21 7 34 0v22c-13 7-21-8-34 0" fill="none" stroke="#9b5348" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

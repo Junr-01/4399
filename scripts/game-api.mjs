@@ -1,11 +1,13 @@
 import { randomUUID } from 'node:crypto';
 
 const expiry = 60 * 60 * 1000;
+const reservationExpiry = 2 * 60 * 1000;
 
 export class GameError extends Error {
-  constructor(status, message) {
+  constructor(status, message, snapshot) {
     super(message);
     this.status = status;
+    this.snapshot = snapshot;
   }
 }
 
@@ -49,11 +51,13 @@ async function readInput(request) {
   throw new GameError(400, '无效请求。');
 }
 
-export function createMatchApi(name, codex, { configure, create, snapshot, scheduleTurn, act }) {
+export function createMatchApi(name, codex, { configure, create, snapshot, scheduleTurn, act, reserveId = false }) {
   const matches = new Map();
+  const reservations = new Map();
   const prefix = '/api/' + name;
 
   function remove(id) {
+    reservations.delete(id);
     const match = matches.get(id);
     if (!match) return;
     cancelTurn(match);
@@ -76,6 +80,15 @@ export function createMatchApi(name, codex, { configure, create, snapshot, sched
     catch (error) { throw new GameError(503, error.userMessage ?? '无法读取 Codex 模型。请检查本机 Codex 的登录及连接，再重试。'); }
   }
 
+  function reserve() {
+    const now = Date.now();
+    for (const [id, expires] of reservations) if (expires <= now) reservations.delete(id);
+    if (reservations.size >= 32) throw new GameError(409, '待开局数量过多，请稍后重试。');
+    const id = randomUUID();
+    reservations.set(id, now + reservationExpiry);
+    return { id };
+  }
+
   async function start(input) {
     const options = configure(input);
     const model = (await catalog()).find(entry => entry.id === options.model);
@@ -85,9 +98,16 @@ export function createMatchApi(name, codex, { configure, create, snapshot, sched
     if (old && !old.paused) throw new GameError(409, '请先暂停当前对局。');
     if (!old && matches.size >= 32) throw new GameError(409, '对局数量过多，请关闭闲置对局后再试。');
 
+    let id;
+    if (reserveId) {
+      id = input.id;
+      if (!(reservations.get(id) > Date.now())) throw new GameError(404, '本次开局已关闭，请重新开始。');
+      reservations.delete(id);
+    } else id = randomUUID();
+
     const config = { ...options, modelName: model.name };
     const match = {
-      ...create(config), id: randomUUID(), config, lastSeen: Date.now(), paused: false,
+      ...create(config), id, config, lastSeen: Date.now(), paused: false,
       turn: null, error: null, task: Promise.resolve(), opponent: codex.openMatch(config, name),
     };
     if (old) remove(old.id);
@@ -108,6 +128,9 @@ export function createMatchApi(name, codex, { configure, create, snapshot, sched
       const matchRoute = path.slice(prefix.length).match(/^\/matches\/([\da-f-]+)$/);
       if (method === 'GET' && path === prefix + '/models') {
         output = { models: await catalog() };
+      } else if (reserveId && method === 'POST' && path === prefix + '/reservations') {
+        output = reserve();
+        status = 201;
       } else if (method === 'POST' && path === prefix + '/matches') {
         output = await start(await readInput(request));
         status = 201;
@@ -126,13 +149,16 @@ export function createMatchApi(name, codex, { configure, create, snapshot, sched
       }
     } catch (error) {
       status = error instanceof GameError ? error.status : 500;
-      output = { error: error instanceof GameError ? error.message : '游戏服务暂时无法处理请求。' };
+      output = error instanceof GameError
+        ? { error: error.message, snapshot: error.snapshot }
+        : { error: '游戏服务暂时无法处理请求。' };
     }
     response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
     response.end(status === 204 ? undefined : JSON.stringify(output));
   }
 
   function close() {
+    reservations.clear();
     for (const id of matches.keys()) remove(id);
   }
 

@@ -1,6 +1,7 @@
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { startServer, identity } from '../scripts/server.mjs';
+import { games } from '../app/games.mjs';
 
 let server;
 let base;
@@ -24,7 +25,7 @@ test('serves the homepage, JavaScript and every cover with browser MIME types', 
     assert.equal(response.status, 200);
     assert.match(response.headers.get('content-type'), /javascript/);
   }
-  for (const id of ['gomoku', 'chess', 'xiangqi', '2048', 'snake']) {
+  for (const { id } of games) {
     const response = await fetch(`${base}/assets/covers/${id}.svg`);
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('content-type'), 'image/svg+xml');
@@ -55,4 +56,14 @@ test('does not expose repo files or allow writes', async () => {
   const response = await fetch(base, { method: 'POST', body: 'unexpected' });
   assert.equal(response.status, 405);
   assert.equal(response.headers.get('allow'), 'GET, HEAD');
+});
+
+test('serves the playable Junqi card and its setup page', async () => {
+  assert.equal(games.find(game => game.id === 'junqi')?.href, '/junqi.html');
+  const page = await fetch(base + '/junqi.html');
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), /type="module" src="\/junqi.mjs"/);
+  const module = await fetch(base + '/junqi-board.mjs');
+  assert.equal(module.status, 200);
+  assert.match(module.headers.get('content-type'), /javascript/);
 });
