@@ -1,0 +1,83 @@
+:root {
+  --move-from: #3f786d;
+  --move-to: #006455;
+}
+
+.game-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+  margin-bottom: 16px;
+}
+
+.game-toolbar a {
+  padding: 10px 0;
+  color: #53624e;
+  font-size: 13px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.game-toolbar a:hover { text-decoration: underline; }
+.game-actions { display: flex; align-items: center; gap: 7px; }
+.match-button {
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid #dce3d5;
+  border-radius: 8px;
+  background: #fff9;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.match-button:hover:not(:disabled) { background: #e9efdf; }
+.match-button:disabled { opacity: .45; cursor: default; }
+
+.match-view { display: grid; gap: 8px; }
+.match-top {
+  display: grid;
+  grid-template-columns: minmax(max-content, 1fr) minmax(0, 2fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+.match-player {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  color: #5d6759;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.match-player.is-active { color: var(--ink); }
+.match-player.is-active strong { font-weight: 760; }
+.match-status { margin: 0; text-align: center; font-size: 12px; font-weight: 650; line-height: 1.4; }
+.match-status:focus { outline: none; }
+.match-feedback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 9px;
+  color: #6e4c3c;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.match-feedback p { margin: 0; }
+
+.result-dialog {
+  width: min(320px, calc(100% - 32px));
+  padding: 26px 20px 20px;
+  border: 1px solid #dce3d5;
+  border-radius: 16px;
+  color: var(--ink);
+  background: #fafbf7;
+  box-shadow: 0 16px 56px #23302136;
+  text-align: center;
+}
+.result-dialog::backdrop { background: #212a214d; }
+.result-dialog h2 { margin: 0; font-size: 22px; }
+.result-dialog p { margin: 7px 0 0; color: #5d6759; font-size: 13px; }
+.result-dialog .game-actions { justify-content: center; margin-top: 20px; }
+.result-dialog .result-replay { color: white; background: #354a32; border-color: #354a32; }
+.result-dialog .result-replay:hover { background: #465e40; }

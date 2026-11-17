@@ -18,14 +18,20 @@ export function cancelTurn(match) {
 }
 
 export function runTurn(match, position, apply, failureMessage) {
+  runTurnTask(match, async (signal) => {
+    const move = await match.opponent.move(position, signal);
+    if (!signal.aborted) apply(move);
+  }, failureMessage);
+}
+
+export function runTurnTask(match, play, failureMessage) {
   const turn = new AbortController();
   match.turn = turn;
   match.error = null;
   match.task = match.task.then(async () => {
     if (turn.signal.aborted) return;
     try {
-      const move = await match.opponent.move(position, turn.signal);
-      if (match.turn === turn) apply(move);
+      await play(turn.signal);
     } catch {
       if (match.turn === turn) match.error = failureMessage;
     } finally {
@@ -51,7 +57,7 @@ async function readInput(request) {
   throw new GameError(400, '无效请求。');
 }
 
-export function createMatchApi(name, codex, { configure, create, snapshot, scheduleTurn, act, reserveId = false }) {
+export function createMatchApi(name, codex, { configure, create, snapshot, scheduleTurn, act, initialize, prepare, reserveId = false }) {
   const matches = new Map();
   const reservations = new Map();
   const prefix = '/api/' + name;
@@ -76,6 +82,7 @@ export function createMatchApi(name, codex, { configure, create, snapshot, sched
   }
 
   async function catalog() {
+    if (initialize) await initialize();
     try { return await codex.catalog(); }
     catch (error) { throw new GameError(503, error.userMessage ?? '无法读取 Codex 模型。请检查本机 Codex 的登录及连接，再重试。'); }
   }
@@ -106,9 +113,11 @@ export function createMatchApi(name, codex, { configure, create, snapshot, sched
     } else id = randomUUID();
 
     const config = { ...options, modelName: model.name };
+    const state = create(config);
+    const opponentOptions = prepare?.(config, id, state);
     const match = {
-      ...create(config), id, config, lastSeen: Date.now(), paused: false,
-      turn: null, error: null, task: Promise.resolve(), opponent: codex.openMatch(config, name),
+      ...state, id, config, lastSeen: Date.now(), paused: false,
+      turn: null, error: null, task: Promise.resolve(), opponent: codex.openMatch(config, name, opponentOptions),
     };
     if (old) remove(old.id);
     matches.set(match.id, match);

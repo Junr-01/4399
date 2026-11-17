@@ -3,11 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
-
-const gomokuInstructions = `你是 4399 五子棋的人机对手。收到棋局后，为 AI 执色的一方选择一手。
-黑棋先行，双方交替在空交叉点落一子。横、竖、斜连成五子或以上即获胜，不设禁手。棋盘下满且无人获胜则为平局。
-以最新棋谱为准，棋谱可能因悔棋而缩短。行和列均从左上角开始，编号为 0 到棋盘尺寸减一。
-直接分析输入中的棋局，只返回一个未被占用的交叉点坐标。无需调用工具。`;
+import { gomokuRootMarker } from './gomoku-workspace.mjs';
 
 const xiangqiInstructions = `你是 4399 中国象棋的人机对手，按中国象棋协会《象棋竞赛规则（2020版）》对弈。红方先走。
 每回合以最新输入为准。board 是 90 个点的数组，按黑上红下逐行排列，每行 9 点。大写是红方，小写是黑方，null 表示空点。k 为将帅，a 为士仕，e 为象相，h 为马，r 为车，c 为炮，p 为卒兵。from 和 to 是数组中的点号。
@@ -24,14 +20,18 @@ const junqiInstructions = `你是 4399 军棋翻棋的人机对手。每回合�
 敌方三雷清除后可夺取已翻开的 flag（军旗），夺旗即胜，即使炸弹夺旗。对方可移动棋子全灭或无合法行动也胜，双方同时全灭或连续 30 着未翻棋、无棋子离场则和棋。
 从 legal 中选择一着，翻棋含 to，走棋含 from 和 to。只返回该着的编号，格式为 {"move":整数}。无需调用工具。`;
 
-const instructions = { gomoku: gomokuInstructions, xiangqi: xiangqiInstructions, chess: chessInstructions, junqi: junqiInstructions };
+const instructions = { xiangqi: xiangqiInstructions, chess: chessInstructions, junqi: junqiInstructions };
+const staleToolRequest = '本次 AI 请求已失效。';
 
-function outputSchema(game, position) {
-  const coordinate = maximum => ({ type: 'integer', minimum: 0, maximum });
-  const properties = game === 'gomoku'
-    ? { row: coordinate(position.size - 1), col: coordinate(position.size - 1) }
-    : { move: coordinate(position.legal.length - 1) };
-  return { type: 'object', properties, required: Object.keys(properties), additionalProperties: false };
+function toolResponse(id, success, text) {
+  return { id, result: { success, contentItems: [{ type: 'inputText', text }] } };
+}
+
+function outputSchema(position) {
+  return {
+    type: 'object', properties: { move: { type: 'integer', minimum: 0, maximum: position.legal.length - 1 } },
+    required: ['move'], additionalProperties: false,
+  };
 }
 
 function unavailable(message) {
@@ -44,9 +44,11 @@ function startClient(cwd) {
     '--disable', 'shell_tool', '--disable', 'apps', '--disable', 'hooks',
     '--disable', 'plugins', '--disable', 'multi_agent', '--disable', 'multi_agent_v2',
     '-c', 'mcp_servers={}', '-c', 'web_search="disabled"',
+    '-c', `project_root_markers=${JSON.stringify(['.git', gomokuRootMarker])}`,
   ], { cwd, stdio: ['pipe', 'pipe', 'ignore'] });
   const pending = new Map();
   const listeners = new Set();
+  const toolHandlers = new Map();
   const ended = new AbortController();
   let nextId = 0;
 
@@ -76,7 +78,10 @@ function startClient(cwd) {
     let message;
     try { message = JSON.parse(line); } catch { return; }
     if (message.method && message.id !== undefined) {
-      notify({ id: message.id, error: { code: -32601, message: '4399 does not handle server requests.' } });
+      if (message.method === 'item/tool/call') {
+        const handler = toolHandlers.get(message.params?.threadId);
+        notify(handler ? handler(message) : toolResponse(message.id, false, staleToolRequest));
+      } else notify({ id: message.id, error: { code: -32601, message: '4399 does not handle this server request.' } });
     } else if (message.method) {
       for (const listen of listeners) listen(message);
     } else {
@@ -84,7 +89,7 @@ function startClient(cwd) {
     }
   });
 
-  function request(method, params) {
+  function request(method, params, onResult) {
     return new Promise((resolve, reject) => {
       ended.signal.throwIfAborted();
       const id = ++nextId;
@@ -93,46 +98,86 @@ function startClient(cwd) {
         clearTimeout(timeout);
         pending.delete(id);
         if (error) reject(error);
-        else resolve(result);
+        else {
+          onResult?.(result);
+          resolve(result);
+        }
       }
       pending.set(id, finish);
       notify({ id, method, params });
     });
   }
 
-  return { request, notify, listeners, ended: ended.signal, close: () => child.kill() };
+  return { request, notify, listeners, toolHandlers, ended: ended.signal, close: () => child.kill() };
 }
 
-async function playTurn(client, threadId, config, game, position, signal) {
+async function playTurn(client, threadId, config, input, signal, usesTools) {
   const { promise, resolve } = Promise.withResolvers();
+  let turnId;
+  let completed = false;
+  let interrupted = false;
   let finalText;
+
+  function interrupt() {
+    if (!turnId || completed || interrupted) return;
+    interrupted = true;
+    client.request('turn/interrupt', { threadId, turnId }).catch(() => {});
+  }
+
+  function identifyTurn(id) {
+    turnId ??= id;
+    if (signal.aborted) interrupt();
+  }
+
   const listen = ({ method, params }) => {
     if (params?.threadId !== threadId) return;
-    if (method === 'item/completed' && params.item.type === 'agentMessage') finalText = params.item.text;
-    if (method === 'turn/completed') resolve(params.turn.status);
+    if (method === 'turn/started') identifyTurn(params.turn.id);
+    if (!turnId) return;
+    if (method === 'item/completed' && params.turnId === turnId && params.item.type === 'agentMessage') {
+      finalText = params.item.text;
+    }
+    if (method === 'turn/completed' && params.turn.id === turnId) {
+      completed = true;
+      resolve(params.turn.status);
+    }
   };
-  const abort = () => resolve('cancelled');
+  const handleTool = ({ id, params }) => {
+    if (!turnId || params.turnId !== turnId || completed || signal.aborted) return toolResponse(id, false, staleToolRequest);
+    try {
+      const output = input.callTool(params.tool, params.arguments);
+      return toolResponse(id, true, typeof output === 'string' ? output : JSON.stringify(output));
+    } catch (error) {
+      return toolResponse(id, false, error.message || '工具请求失败。');
+    }
+  };
+  const abort = () => {
+    interrupt();
+    resolve('cancelled');
+  };
   client.listeners.add(listen);
+  if (usesTools) client.toolHandlers.set(threadId, handleTool);
   signal.addEventListener('abort', abort, { once: true });
   try {
     signal.throwIfAborted();
-    const { turn } = await client.request('turn/start', {
+    await client.request('turn/start', {
       threadId,
       model: config.model,
       effort: config.effort,
-      input: [{ type: 'text', text: JSON.stringify(position) }],
-      outputSchema: outputSchema(game, position),
-    });
+      input: [{ type: 'text', text: usesTools ? input.text : JSON.stringify(input) }],
+      outputSchema: usesTools ? undefined : outputSchema(input),
+    }, result => identifyTurn(result?.turn?.id));
+    if (!turnId) throw new Error('Codex 未返回回合 ID。');
     const status = await promise;
-    if (status === 'cancelled') {
-      client.request('turn/interrupt', { threadId, turnId: turn.id }).catch(() => {});
-      signal.throwIfAborted();
-    }
+    signal.throwIfAborted();
     if (status !== 'completed') throw new Error('AI 未能完成落子。');
-    return JSON.parse(finalText);
+    if (!usesTools) return JSON.parse(finalText);
+  } catch (error) {
+    interrupt();
+    throw error;
   } finally {
     signal.removeEventListener('abort', abort);
     client.listeners.delete(listen);
+    if (usesTools) client.toolHandlers.delete(threadId);
   }
 }
 
@@ -148,7 +193,9 @@ export function createCodexOpponent(version) {
       const client = startClient(cwd);
       client.ended.addEventListener('abort', clearConnection, { once: true });
       try {
-        await client.request('initialize', { clientInfo: { name: '4399', version } });
+        await client.request('initialize', {
+          clientInfo: { name: '4399', version }, capabilities: { experimentalApi: true },
+        });
         client.notify({ method: 'initialized' });
         return client;
       } catch (error) {
@@ -189,7 +236,7 @@ export function createCodexOpponent(version) {
     return models;
   }
 
-  function openMatch(config, game) {
+  function openMatch(config, game, { cwd, dynamicTools } = {}) {
     let session;
 
     function dispose() {
@@ -199,7 +246,7 @@ export function createCodexOpponent(version) {
       client.request('thread/unsubscribe', { threadId }).catch(() => {});
     }
 
-    async function move(position, cancel) {
+    async function move(input, cancel) {
       const client = await connect();
       const signal = AbortSignal.any([cancel, client.ended, AbortSignal.timeout(90_000)]);
       try {
@@ -208,10 +255,11 @@ export function createCodexOpponent(version) {
           const { thread } = await client.request('thread/start', {
             model: config.model, ephemeral: true, sandbox: 'read-only',
             approvalPolicy: 'never', developerInstructions: instructions[game],
+            cwd, dynamicTools,
           });
           session = { client, threadId: thread.id };
         }
-        return await playTurn(client, session.threadId, config, game, position, signal);
+        return await playTurn(client, session.threadId, config, input, signal, Boolean(dynamicTools));
       } catch (error) {
         dispose();
         throw error;

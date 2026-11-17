@@ -1,7 +1,10 @@
-import { effortName, effortOption, escapeHtml as html, selectModel } from './game-models.mjs';
+import { effortOption, escapeHtml as html, selectModel } from './game-models.mjs';
+import { createResultDialog, gameToolbar, matchFeedback, matchLayout, matchPlayer, matchResult } from './match-ui.mjs';
 
 const main = document.querySelector('#gomoku');
+const showResult = createResultDialog(main);
 const api = '/api/gomoku';
+const colors = { black: '黑方', white: '白方' };
 const draft = { size: 15, first: 'you', model: '', effort: '' };
 let models = [];
 let match = null;
@@ -75,11 +78,12 @@ function board(size, preview) {
     const move = cells.get(index);
     const isStar = row === middle && col === middle
       || [star, size - 1 - star].includes(row) && [star, size - 1 - star].includes(col);
+    const last = move?.index === match.moves.length - 1;
     const label = String.fromCharCode(65 + col) + (size - row)
-      + (move ? (move.color === 'black' ? ' 黑棋' : ' 白棋') : '');
+      + (move ? (move.color === 'black' ? ' 黑棋' : ' 白棋') : '') + (last ? ' 最近一步' : '');
     const classes = ['intersection', isStar && 'star', move && 'occupied', winning.has(index) && 'winning'].filter(Boolean);
     return `<button class="${classes.join(' ')}" data-row="${row}" data-col="${col}" aria-label="${label}" ${disabled(locked || move)}>
-      ${move ? stone(move.color, move.index === match.moves.length - 1) : '<span class="ghost"></span>'}
+      ${move ? stone(move.color, last) : '<span class="ghost"></span>'}
     </button>`;
   });
   const human = match.humanColor === 'black' ? '#35402f' : '#fff';
@@ -109,34 +113,29 @@ function setupView() {
   </div>`;
 }
 
-function playView() {
-  const status = match.result === 'draw' ? '平局'
-    : match.result ? (match.result === match.humanColor ? '你赢了' : 'AI 获胜')
-    : match.thinking ? 'AI 正在思考'
-    : match.error ? 'AI 落子失败' : '轮到你落子';
-  return `<div class="players">
-    <span class="player ${!match.thinking && !match.result && !match.error ? 'active' : ''}">${stone(match.humanColor)}你</span>
-    <span class="player ${match.thinking ? 'active' : ''}">AI${stone(opposite(match.humanColor))}</span>
-  </div>
-  ${board(match.config.size, false)}
-  <div class="bottom-console">
-    <p class="turn-status" role="status"><span class="status-dot ${match.thinking ? 'thinking' : ''}" aria-hidden="true"></span>${status}</p>
-    <div class="play-controls">
-      ${match.error || error ? `<button class="secondary" data-action="${error ? 'refresh' : 'retry'}" ${disabled(busy)}>重试</button>` : ''}
-      <button class="secondary" data-action="undo" ${disabled(busy || !match.canUndo)}><span aria-hidden="true">↶</span> 悔棋</button>
-      <button class="secondary" data-action="pause" ${disabled(busy)}><span aria-hidden="true">↻</span> 重新开始</button>
-    </div>
-  </div>
-  <p class="match-error" role="status">${html(error || match.error || '')}</p>`;
+function playView(result) {
+  const { humanColor, thinking, config } = match;
+  const aiColor = opposite(humanColor);
+  const message = error || match.error;
+  return matchLayout({
+    opponent: matchPlayer('AI', colors[aiColor], stone(aiColor), thinking),
+    player: matchPlayer('你', colors[humanColor], stone(humanColor), !thinking && !result && !message),
+    board: board(config.size, false),
+    status: result?.status ?? (message ? '对局暂未更新' : thinking ? 'AI 正在思考' : '轮到你落子'),
+    notice: matchFeedback(error, match.error, busy),
+  });
 }
 
-function render() {
-  const config = match?.config;
-  const meta = setup ? '' : `<span class="table-meta">${config.size} × ${config.size} · ${html(config.modelName)} · ${html(effortName(config.effort))}</span>`;
-  main.innerHTML = `<div class="game-table">
-    <div class="table-heading"><h1>五子棋</h1>${meta}</div>
-    ${setup ? setupView() : playView()}
+function render(focus) {
+  const result = match?.result ? (match.result === 'draw'
+    ? matchResult(null, match.humanColor, '棋盘已满')
+    : matchResult(match.result, match.humanColor, '五子连珠')) : null;
+  main.innerHTML = `<div class="game-table ${setup ? '' : 'playing'}">
+    ${gameToolbar(setup ? null : match, busy)}
+    ${setup ? `<div class="table-heading"><h1 tabindex="-1">五子棋</h1></div>${setupView()}` : playView(result)}
   </div>`;
+  if (focus) main.querySelector(focus)?.focus({ preventScroll: true });
+  showResult(match, result, busy);
 }
 
 function watchTurn() {
@@ -145,6 +144,7 @@ function watchTurn() {
   const version = revision;
   const id = match.id;
   poll = setTimeout(async () => {
+    const moveCount = match.moves.length;
     try {
       const updated = await request('/matches/' + id);
       if (version !== revision) return;
@@ -153,7 +153,7 @@ function watchTurn() {
       if (version !== revision) return;
       showError(failure);
     }
-    if (setup || !match.thinking || error) render();
+    if (setup || !match.thinking || error || match.moves.length !== moveCount) render();
     watchTurn();
   }, 400);
 }
@@ -181,6 +181,7 @@ function applyMatch(updated) {
 
 async function perform(work) {
   if (busy) return;
+  const previous = setup;
   busy = true;
   error = '';
   revision++;
@@ -190,7 +191,7 @@ async function perform(work) {
   catch (failure) { showError(failure); }
   finally {
     busy = false;
-    render();
+    render(previous === setup ? undefined : setup ? 'h1' : '.match-status');
     watchTurn();
   }
 }
