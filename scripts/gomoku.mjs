@@ -1,8 +1,7 @@
-import { cancelTurn, createMatchApi, GameError, runTurnTask } from './game-api.mjs';
-import { createGomokuWorkspace } from './gomoku-workspace.mjs';
+import { cancelTurn, createMatchApi, GameError, runToolTurn } from './game-api.mjs';
+import { createGameWorkspace } from './game-workspace.mjs';
 
 const directions = [[1, 0], [0, 1], [1, 1], [1, -1]];
-const maxAttempts = 4;
 const gomokuTools = [
   {
     type: 'function', name: 'get_position',
@@ -71,41 +70,16 @@ function callTurnTool(match, turn, name, args) {
     lastMove: match.moves.at(-1) ?? null,
   };
   if (name !== 'place_stone') throw new GameError(400, '未知的五子棋工具。');
-  if (turn.placed) throw new GameError(409, '本回合已落子。');
+  if (turn.moveCommitted) throw new GameError(409, '本回合已落子。');
   const error = moveError(match, args?.row, args?.col);
   if (error) throw new GameError(400, error);
   place(match, args.row, args.col);
-  turn.placed = true;
+  turn.moveCommitted = true;
   return '落子成功。请结束本回合。';
 }
 
-async function playAiTurn(match, turn, message, signal) {
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    signal.throwIfAborted();
-    let active = true;
-    try {
-      await match.opponent.move({
-        text: message,
-        callTool(name, args) {
-          if (!active || signal.aborted) throw new GameError(409, '本次 AI 请求已失效。');
-          return callTurnTool(match, turn, name, args);
-        },
-      }, signal);
-      signal.throwIfAborted();
-      if (!turn.placed) throw new Error('AI 回合结束时尚未落子。');
-      match.aiTurn = null;
-      return;
-    } catch (error) {
-      if (signal.aborted || attempt === maxAttempts - 1) throw error;
-    } finally {
-      active = false;
-    }
-    message = recoveryMessage(turn);
-  }
-}
-
 function recoveryMessage(turn) {
-  return turn.placed ? '你本回合已经成功落子。请确认当前局面，然后结束本回合。'
+  return turn.moveCommitted ? '你本回合已经成功落子。请确认当前局面，然后结束本回合。'
     : '请查看当前局面，然后落子。';
 }
 
@@ -113,12 +87,12 @@ function scheduleTurn(match) {
   if (match.paused || match.turn) return;
   const existing = match.aiTurn;
   if (!existing && (match.result || nextColor(match) === match.humanColor)) return;
-  const turn = existing ?? { color: nextColor(match), placed: false };
-  const message = existing ? recoveryMessage(turn) : match.undoPending ? '我悔棋了，已经重新落子'
-    : match.moves.length ? '我已落子' : '棋局开始';
-  match.aiTurn = turn;
-  match.undoPending = false;
-  runTurnTask(match, signal => playAiTurn(match, turn, message, signal), 'AI 回合未能完成，请重试。');
+  const turn = existing ?? { color: nextColor(match), moveCommitted: false };
+  runToolTurn(match, turn, {
+    opening: match.moves.length === 0,
+    callTool: (name, args) => callTurnTool(match, turn, name, args),
+    recoveryMessage: () => recoveryMessage(turn),
+  });
 }
 
 function undo(match) {
@@ -166,11 +140,14 @@ function act(match, input) {
 
 
 export function createGomokuApi(codex, directory) {
-  const workspace = createGomokuWorkspace(directory);
+  const workspace = createGameWorkspace('gomoku', directory);
   return createMatchApi('gomoku', codex, {
     initialize: workspace.initialize,
-    prepare(config, id, state) {
-      return { cwd: workspace.prepare(config, id, state), dynamicTools: gomokuTools };
+    prepare({ size }, id, { humanColor }) {
+      const first = humanColor === 'black' ? '对手（人类玩家）执黑先下，你执白后下。'
+        : '你执黑先下，对手（人类玩家）执白后下。';
+      const cwd = workspace.prepare(id, `# 棋盘尺寸\n\n本局使用 ${size}×${size} 棋盘。\n\n# 先手\n\n${first}\n`);
+      return { cwd, dynamicTools: gomokuTools };
     },
     configure({ size, model, effort, first }) {
       if (![9, 13, 15].includes(size) || !['you', 'ai', 'random'].includes(first)) {

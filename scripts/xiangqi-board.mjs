@@ -66,6 +66,18 @@ export function checkLines(board, side) {
     piece && piece.side !== side && canReach(board, from, king, true) ? [{ from, to: king }] : []);
 }
 
+export function moveRejectionReason(board, side, { from, to }) {
+  if (board[from]?.side !== side) return '起点没有己方棋子。';
+  if (from === to) return '起点和终点必须不同。';
+  if (board[to]?.side === side) return '终点已有己方棋子。';
+  if (board[to]?.type === 'k') return '请通过将死取胜。';
+  if (!canReach(board, from, to)) return '这一步不符合该棋子的走法，或行棋路线被挡住。';
+  if (inCheck(movedBoard(board, { from, to }), side)) {
+    return inCheck(board, side) ? '走这一步后，己方帅将仍会被将军。' : '走这一步会使己方帅将被将军。';
+  }
+  return '当前棋局不能执行这一步。';
+}
+
 const orthogonal = [[-1, 0], [1, 0], [0, -1], [0, 1]];
 const diagonal = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
 const offsets = {

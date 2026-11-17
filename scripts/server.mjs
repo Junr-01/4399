@@ -30,9 +30,9 @@ export function configuredPort() {
   return Number(value);
 }
 
-export function createGameServer({ codex = createCodexOpponent(version), gomokuDirectory, junqiRandom } = {}) {
+export function createGameServer({ codex = createCodexOpponent(version), gomokuDirectory, xiangqiDirectory, junqiRandom } = {}) {
   const gomoku = createGomokuApi(codex, gomokuDirectory);
-  const xiangqi = createXiangqiApi(codex);
+  const xiangqi = createXiangqiApi(codex, xiangqiDirectory);
   const chess = createChessApi(codex);
   const junqi = createJunqiApi(codex, junqiRandom);
   const server = createServer(async (request, response) => {

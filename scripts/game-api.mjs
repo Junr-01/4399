@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 const expiry = 60 * 60 * 1000;
 const reservationExpiry = 2 * 60 * 1000;
+const maxToolTurnAttempts = 4;
 
 export class GameError extends Error {
   constructor(status, message, snapshot) {
@@ -38,6 +39,42 @@ export function runTurnTask(match, play, failureMessage) {
       if (match.turn === turn) match.turn = null;
     }
   });
+}
+
+export function runToolTurn(match, turn, { opening, callTool, recoveryMessage }) {
+  const message = match.aiTurn ? recoveryMessage() : match.undoPending ? '我悔棋了，已经重新落子'
+    : opening ? '棋局开始' : '我已落子';
+  match.aiTurn = turn;
+  match.undoPending = false;
+  runTurnTask(match, async signal => {
+    await completeToolTurn(match.opponent, turn, { message, callTool, recoveryMessage }, signal);
+    signal.throwIfAborted();
+    match.aiTurn = null;
+  }, 'AI 回合未能完成，请重试。');
+}
+
+async function completeToolTurn(opponent, turn, { message, callTool, recoveryMessage }, signal) {
+  for (let attempt = 0; attempt < maxToolTurnAttempts; attempt++) {
+    signal.throwIfAborted();
+    let active = true;
+    try {
+      await opponent.move({
+        text: message,
+        callTool(name, args) {
+          if (!active || signal.aborted) throw new GameError(409, '本次 AI 请求已失效。');
+          return callTool(name, args);
+        },
+      }, signal);
+      signal.throwIfAborted();
+      if (!turn.moveCommitted) throw new Error('AI 回合结束时尚未走棋。');
+      return;
+    } catch (error) {
+      if (signal.aborted || attempt === maxToolTurnAttempts - 1) throw error;
+    } finally {
+      active = false;
+    }
+    message = recoveryMessage();
+  }
 }
 
 async function readInput(request) {

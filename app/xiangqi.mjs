@@ -65,6 +65,7 @@ function watchTurn() {
   const epoch = requestEpoch;
   const id = match.id;
   poll = setTimeout(async () => {
+    const revision = match.revision;
     try {
       const updated = await request('/matches/' + id);
       if (epoch !== requestEpoch) return;
@@ -73,7 +74,10 @@ function watchTurn() {
       if (epoch !== requestEpoch) return;
       showError(failure);
     }
-    if (!match?.thinking || error) render();
+    if (!match?.thinking || match.revision !== revision || error) {
+      const action = document.activeElement?.closest('.game-toolbar button')?.dataset.action;
+      render(action ? `.game-toolbar button[data-action="${action}"]` : undefined);
+    }
     watchTurn();
   }, 400);
 }
@@ -182,8 +186,8 @@ const reasons = {
 };
 
 function playView(result) {
-  const { humanSide, side, thinking, check, adjudication } = match;
-  const humanTurn = humanSide === side;
+  const { humanSide, side, aiTurn, thinking, check, adjudication } = match;
+  const humanTurn = !aiTurn && humanSide === side;
   const opponent = humanSide === 'red' ? 'black' : 'red';
   const turn = error || match.error ? '对局暂未更新' : thinking ? 'AI 正在思考' : humanTurn ? '轮到你走棋' : '轮到 AI';
   let ruleNotice = '';

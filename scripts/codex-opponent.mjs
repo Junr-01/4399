@@ -3,12 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
-import { gomokuRootMarker } from './gomoku-workspace.mjs';
-
-const xiangqiInstructions = `你是 4399 中国象棋的人机对手，按中国象棋协会《象棋竞赛规则（2020版）》对弈。红方先走。
-每回合以最新输入为准。board 是 90 个点的数组，按黑上红下逐行排列，每行 9 点。大写是红方，小写是黑方，null 表示空点。k 为将帅，a 为士仕，e 为象相，h 为马，r 为车，c 为炮，p 为卒兵。from 和 to 是数组中的点号。
-从 legal 列表为 aiSide 选一着，优先将死、解将或取得子力优势。若 adjudication 要求你变着，选择能打破循环的着法，并遵循其中的闲着要求。
-直接返回所选着法的编号，格式为 {"move":整数}。无需调用工具。`;
+import { gameRootMarker } from './game-workspace.mjs';
 
 const chessInstructions = `你是 4399 国际象棋的人机对手。使用标准国际象棋规则，白方先走。三次重复或双方各 50 着未动兵也未吃子时自动判和。
 fen 是当前完整局面，aiSide 是你的棋色。以最新输入为准，玩家可能已经悔棋。recentMoves 是近期棋谱，legal 是本回合可用着法。from、to 使用 a1 到 h8 坐标。升变字段 q、r、b、n 分别表示后、车、象、马。
@@ -20,7 +15,7 @@ const junqiInstructions = `你是 4399 军棋翻棋的人机对手。每回合�
 敌方三雷清除后可夺取已翻开的 flag（军旗），夺旗即胜，即使炸弹夺旗。对方可移动棋子全灭或无合法行动也胜，双方同时全灭或连续 30 着未翻棋、无棋子离场则和棋。
 从 legal 中选择一着，翻棋含 to，走棋含 from 和 to。只返回该着的编号，格式为 {"move":整数}。无需调用工具。`;
 
-const instructions = { xiangqi: xiangqiInstructions, chess: chessInstructions, junqi: junqiInstructions };
+const instructions = { chess: chessInstructions, junqi: junqiInstructions };
 const staleToolRequest = '本次 AI 请求已失效。';
 
 function toolResponse(id, success, text) {
@@ -44,7 +39,7 @@ function startClient(cwd) {
     '--disable', 'shell_tool', '--disable', 'apps', '--disable', 'hooks',
     '--disable', 'plugins', '--disable', 'multi_agent', '--disable', 'multi_agent_v2',
     '-c', 'mcp_servers={}', '-c', 'web_search="disabled"',
-    '-c', `project_root_markers=${JSON.stringify(['.git', gomokuRootMarker])}`,
+    '-c', `project_root_markers=${JSON.stringify(['.git', gameRootMarker])}`,
   ], { cwd, stdio: ['pipe', 'pipe', 'ignore'] });
   const pending = new Map();
   const listeners = new Set();

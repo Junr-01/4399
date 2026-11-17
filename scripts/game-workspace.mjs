@@ -3,13 +3,14 @@ import { access, link, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/p
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-export const gomokuRootMarker = '.4399-root';
-const prompts = new URL('../docs/gomoku-prompts/', import.meta.url);
+export const gameRootMarker = '.4399-root';
 
-export function createGomokuWorkspace(directory = join(homedir(), '.4399', 'gomoku')) {
+export function createGameWorkspace(game, directory = join(homedir(), '.4399', game)) {
+  const prompts = new URL(`../docs/${game}-prompts/`, import.meta.url);
+
   async function initialize() {
     await mkdir(directory, { recursive: true, mode: 0o700 });
-    await writeFile(join(directory, gomokuRootMarker), '', { flag: 'a', mode: 0o600 });
+    await writeFile(join(directory, gameRootMarker), '', { flag: 'a', mode: 0o600 });
     const target = join(directory, 'AGENTS.md');
     try {
       await access(target);
@@ -31,12 +32,10 @@ export function createGomokuWorkspace(directory = join(homedir(), '.4399', 'gomo
     }
   }
 
-  function prepare({ size }, id, { humanColor }) {
+  function prepare(id, instructions) {
     const cwd = join(directory, id);
     mkdirSync(cwd, { mode: 0o700 });
-    const first = humanColor === 'black' ? '对手（人类玩家）执黑先下，你执白后下。'
-      : '你执黑先下，对手（人类玩家）执白后下。';
-    writeFileSync(join(cwd, 'AGENTS.md'), `# 棋盘尺寸\n\n本局使用 ${size}×${size} 棋盘。\n\n# 先手\n\n${first}\n`, { mode: 0o600 });
+    writeFileSync(join(cwd, 'AGENTS.md'), instructions, { mode: 0o600 });
     return cwd;
   }
 
