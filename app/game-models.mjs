@@ -1,6 +1,5 @@
 const efforts = { none: '无', minimal: '极低', low: '低', medium: '中', high: '高', xhigh: '极高', max: '最大', ultra: '超强' };
 
-export const effortName = effort => efforts[effort] ?? effort;
 export const effortOption = effort => efforts[effort] ? `${efforts[effort]}（${effort}）` : effort;
 export const escapeHtml = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 

@@ -1,7 +1,9 @@
-import { effortName, effortOption, escapeHtml as html, selectModel } from './game-models.mjs';
+import { effortOption, escapeHtml as html, selectModel } from './game-models.mjs';
+import { createResultDialog, gameToolbar, matchFeedback, matchLayout, matchPlayer, matchResult } from './match-ui.mjs';
 import { initialPlacement, parseBoard } from './xiangqi-position.mjs';
 
 const main = document.querySelector('#xiangqi');
+const showResult = createResultDialog(main);
 const api = '/api/xiangqi';
 const previewBoard = parseBoard(initialPlacement);
 const names = { red: '红方', black: '黑方' };
@@ -88,7 +90,7 @@ async function perform(work) {
   catch (failure) { showError(failure); }
   finally {
     busy = false;
-    render(previous !== isSetup() ? 'h1' : undefined);
+    render(previous !== isSetup() ? (isSetup() ? 'h1' : '.match-status') : undefined);
     watchTurn();
   }
 }
@@ -105,19 +107,22 @@ function board(preview = false) {
   const legal = preview || busy || error ? [] : match.legal;
   const origins = new Set(legal.map(move => move.from));
   const targets = new Set(legal.filter(move => move.from === selected).map(move => move.to));
+  const last = preview ? null : match.lastMove;
   const cells = grid.map((cell, index) => {
     const target = targets.has(index);
-    if (!cell && !target) return '';
+    const from = last?.from === index;
+    const to = last?.to === index;
+    if (!cell && !target && !from && !to) return '';
     const display = flipped ? 89 - index : index;
     const style = `left:${display % 9 / 8 * 100}%;top:${Math.floor(display / 9) / 9 * 100}%`;
-    const last = !preview && match.lastMove?.to === index;
     const checked = !preview && match.check && cell?.type === 'k' && cell.side === match.side;
     const classes = ['point', cell?.side, target && (cell ? 'capture' : 'destination'),
-      last && 'last', !preview && selected === index && 'selected', checked && 'in-check'].filter(Boolean).join(' ');
+      !cell && 'empty', from && 'last-from', to && 'last-to',
+      !preview && selected === index && 'selected', checked && 'in-check'].filter(Boolean).join(' ');
     const symbol = cell ? glyphs[cell.side][cell.type] : '';
     const coords = String.fromCharCode(97 + index % 9) + (10 - Math.floor(index / 9));
-    const label = target ? (cell ? `吃${names[cell.side]}${symbol} ${coords}` : `移至 ${coords}`)
-      : `${names[cell.side]}${symbol} ${coords}`;
+    const location = cell ? `${target ? '吃' : ''}${names[cell.side]}${symbol} ${coords}` : target ? `移至 ${coords}` : coords;
+    const label = location + (from ? ' 最近一步起点' : to ? ' 最近一步落点' : '');
     if (origins.has(index) || target) {
       return `<button class="${classes}" style="${style}" type="button" data-point="${index}" aria-label="${label}"
         ${target ? '' : `aria-pressed="${selected === index}"`}>${symbol}</button>`;
@@ -176,13 +181,11 @@ const reasons = {
   'perpetual-mate-threat': '长杀', 'perpetual-chase': '长捉', 'alternating-threats': '循环进攻',
 };
 
-function playView() {
-  const { humanSide, side, result, thinking, check, adjudication } = match;
+function playView(result) {
+  const { humanSide, side, thinking, check, adjudication } = match;
   const humanTurn = humanSide === side;
   const opponent = humanSide === 'red' ? 'black' : 'red';
-  const winText = result?.winner ? (result.winner === humanSide ? '你赢了' : 'AI 获胜') : '和棋';
-  const status = result ? `${winText} · ${reasons[result.reason]}`
-    : match.error ? 'AI 走棋失败' : thinking ? 'AI 正在思考' : humanTurn ? '轮到你走棋' : '等待 AI';
+  const turn = error || match.error ? '对局暂未更新' : thinking ? 'AI 正在思考' : humanTurn ? '轮到你走棋' : '轮到 AI';
   let ruleNotice = '';
   if (!result && adjudication) {
     ruleNotice = adjudication.side
@@ -190,33 +193,29 @@ function playView() {
       : `双方继续重复 ${adjudication.remaining} 回合将判和`;
     if (adjudication.requiresQuiet) ruleNotice += '，其中一着须为闲';
   }
-  return `<section class="match-layout">
-    <div class="players">
-      <div class="player ${!result && !humanTurn ? 'active' : ''}">${marker(opponent)}AI <span>${names[opponent]}</span></div>
-      <div class="player ${!result && humanTurn ? 'active' : ''}">${marker(humanSide)}你 <span>${names[humanSide]}</span></div>
-    </div>
-    ${board()}
-    <div class="match-controls">
-      <p class="turn-status" role="status">${status}${!result && check ? ` · ${names[side]}被将军` : ''}</p>
-      <div class="play-actions">
-        ${match.canClaimDraw ? `<button class="secondary" data-action="claim-draw" ${disabled(busy)}>申请和棋</button>` : ''}
-        ${error || match.error ? `<button class="secondary" data-action="${error ? 'refresh' : 'retry'}" ${disabled(busy)}>重试</button>` : ''}
-        <button class="secondary" data-action="undo" ${disabled(busy || !match.canUndo)}>↶ 悔棋</button>
-        <button class="secondary" data-action="pause" ${disabled(busy)}>↻ 重新开始</button>
-      </div>
-    </div>
-    <p class="match-notice" role="status">${ruleNotice}</p>
-    <p class="match-notice" role="status">${html(error || match.error || '')}</p>
-  </section>`;
+  const claimDraw = !result && match.canClaimDraw;
+  const rules = ruleNotice || claimDraw ? `<div class="match-feedback">
+    ${ruleNotice ? `<p role="status">${ruleNotice}</p>` : ''}
+    ${claimDraw ? `<button class="match-button" type="button" data-action="claim-draw" ${disabled(busy)}>申请和棋</button>` : ''}
+  </div>` : '';
+  return matchLayout({
+    opponent: matchPlayer('AI', names[opponent], marker(opponent), !result && !humanTurn),
+    player: matchPlayer('你', names[humanSide], marker(humanSide), !result && humanTurn),
+    board: board(),
+    status: result?.status ?? (check ? `${turn} · ${names[side]}被将军` : turn),
+    notice: rules + matchFeedback(error, match.error, busy),
+  });
 }
 
 function render(focus) {
   const setup = isSetup();
-  const meta = setup ? '' : `<span class="match-model">${html(match.config.modelName)} · ${html(effortName(match.config.effort))}</span>`;
+  const result = match?.result ? matchResult(match.result.winner, match.humanSide, reasons[match.result.reason]) : null;
   main.innerHTML = `<div class="game-shell ${setup ? 'setup-shell' : 'playing'}">
-    <div class="game-heading"><h1 tabindex="-1">中国象棋</h1>${meta}</div>${setup ? setupView() : playView()}
+    ${gameToolbar(setup ? null : match, busy)}
+    ${setup ? `<div class="game-heading"><h1 tabindex="-1">中国象棋</h1></div>${setupView()}` : playView(result)}
   </div>`;
   if (focus) main.querySelector(focus)?.focus({ preventScroll: true });
+  showResult(match, result, busy);
 }
 
 main.addEventListener('change', ({ target }) => {

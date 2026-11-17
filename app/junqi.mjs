@@ -1,7 +1,9 @@
-import { effortName, effortOption, escapeHtml as html, selectModel } from './game-models.mjs';
+import { effortOption, escapeHtml as html, selectModel } from './game-models.mjs';
+import { createResultDialog, gameToolbar, matchFeedback, matchLayout, matchPlayer, matchResult } from './match-ui.mjs';
 import { lines, points } from './junqi-board.mjs';
 
 const main = document.querySelector('#junqi');
+const showResult = createResultDialog(main);
 const api = '/api/junqi';
 const firstOptions = { human: '我先翻', ai: 'AI 先翻', random: '随机' };
 const colorNames = { red: '红方', blue: '蓝方' };
@@ -107,7 +109,7 @@ async function perform(work, focus) {
   catch (failure) { showError(failure); }
   finally {
     busy = false;
-    render(previous !== isSetup() ? 'h1' : focus);
+    render(previous !== isSetup() ? (isSetup() ? 'h1' : '.match-status') : focus);
     watchTurn();
   }
 }
@@ -142,8 +144,11 @@ function boardView(preview = false) {
         const description = dark ? flips.has(id) ? '翻开暗子' : '暗子'
           : piece ? `${colorNames[piece.color]}${pieceNames[piece.type]}`
             : camp ? '行营' : base ? '大本营' : '空位';
-        const label = `${target ? piece ? '攻击 ' : '移动至 ' : ''}${row + 1} 行 ${col + 1} 列 ${description}`;
-        const classes = ['board-point', (last?.to === id || last?.from === id) && 'last',
+        const from = last?.from === id;
+        const to = last?.to === id;
+        const recent = from ? ' 最近一步起点' : to ? (last.action === 'flip' ? ' 最近翻开' : ' 最近一步落点') : '';
+        const label = `${target ? piece ? '攻击 ' : '移动至 ' : ''}${row + 1} 行 ${col + 1} 列 ${description}${recent}`;
+        const classes = ['board-point', from && 'last-from', to && 'last-to',
           target && 'target', id === selected && !preview && 'selected'].filter(Boolean).join(' ');
         const style = `style="--x:${x / 4}%;--y:${y / 539 * 100}%"`;
         return flips.has(id) || origin || target
@@ -162,11 +167,6 @@ function picker(name, label, options) {
     </select></span></label>`;
 }
 
-function notice(message, action, label) {
-  return message ? `<p class="match-error" role="alert">${html(message)}</p>
-    <div class="error-actions"><button type="button" data-action="${action}" ${disabled(busy)}>${label}</button></div>` : '';
-}
-
 function setupView() {
   const model = models.find(item => item.id === draft.model);
   return `<section class="setup-stage">${boardView(true)}
@@ -178,73 +178,53 @@ function setupView() {
         <fieldset ${disabled(busy)}><legend>先手</legend><div class="first-choices">${Object.entries(firstOptions).map(([value, label]) =>
           `<label><input type="radio" name="first" value="${value}" ${draft.first === value ? 'checked' : ''}><span>${label}</span></label>`).join('')}
         </div></fieldset>
+        <p class="field-note">同一方连续两次翻到同色，确定阵营</p>
       </div>
       <button class="start-match" type="submit" ${disabled(busy || !model)}>开始对局 <span aria-hidden="true">→</span></button>
       ${match ? `<button class="resume-match" type="button" data-action="resume" ${disabled(busy)}>返回对局</button>` : ''}
-      ${notice(error, 'catalog', model ? '刷新模型列表' : '重试')}
+      ${error ? `<p class="match-error" role="alert">${html(error)}</p>
+        <button class="match-button" type="button" data-action="catalog" ${disabled(busy)}>${model ? '刷新模型列表' : '重试'}</button>` : ''}
     </form>
   </section>`;
 }
 
 function player(who) {
   const color = match.sides?.[who];
-  const last = match.flips[who];
-  return `<div class="junqi-player ${!match.result && match.turn === who ? 'active' : ''}">
-    <span class="player-mark ${color ?? last ?? ''} ${color ? '' : 'unassigned'}" aria-hidden="true"></span>
-    <div class="player-name"><strong>${who === 'human' ? '你' : 'AI'}</strong>
-      <span>${color ? colorNames[color] : last ? `上次翻到${colorNames[last][0]}色` : '待定阵营'}</span></div>
-    ${color ? `<span class="mine-count">地雷 <b>${match.mines[color]}</b> / 3</span>` : ''}
-  </div>`;
+  const mark = `<span class="player-mark ${color ?? 'unassigned'}" aria-hidden="true"></span>`;
+  return matchPlayer(who === 'human' ? '你' : 'AI', colorNames[color] ?? '待定阵营', mark, !match.result && match.turn === who);
 }
 
 function turnStatus() {
-  if (match.result) {
-    const { winner, reason } = match.result;
-    const result = winner === 'human' ? '你赢了' : winner === 'ai' ? 'AI 获胜' : '和棋';
-    const detail = reason === 'elimination' ? `${winner ? '败方' : '双方'}可移动棋子全灭` : reasons[reason];
-    return `${result} · ${detail}`;
-  }
+  if (error || match.error) return '对局暂未更新';
   if (match.turn === 'ai') return match.thinking ? 'AI 正在思考' : '轮到 AI';
   if (!match.sides) return '轮到你翻棋';
-  return selected === undefined ? '轮到你' : '选择落点';
+  return selected === undefined ? '轮到你行动' : '选择落点';
 }
 
-function recentAction() {
-  const last = match.last;
-  if (!last) return '同一方连续两次翻到同色，确定阵营';
-  const who = last.player === 'human' ? '你' : 'AI';
-  const { color, type } = last.piece;
-  const point = id => `${points[id].row + 1}行${points[id].col + 1}列`;
-  const action = last.action === 'flip' ? `翻开${colorNames[color]}${pieceNames[type]}（${point(last.to)}）`
-    : `${pieceNames[type]} ${point(last.from)} → ${point(last.to)}`;
-  return `${who} ${action}`;
+function resultView({ winner, reason }) {
+  const detail = reason === 'elimination' ? `${winner ? '败方' : '双方'}可移动棋子全灭` : reasons[reason];
+  return matchResult(winner, 'human', detail);
 }
 
-function matchView() {
-  return `<section class="match-layout">
-    ${player('ai')}${boardView()}${player('human')}
-    <div class="match-footer">
-      <div class="match-status" role="status">
-        <p><span class="status-dot ${match.thinking ? 'thinking' : ''}" aria-hidden="true"></span>${turnStatus()}</p>
-        <span>${recentAction()}</span>
-      </div>
-      <div class="match-actions">
-        <button type="button" data-action="undo" ${disabled(busy || !match.canUndo)}><span aria-hidden="true">↶</span> 悔棋</button>
-        <button type="button" data-action="pause" ${disabled(busy)}><span aria-hidden="true">↻</span> 重新开始</button>
-      </div>
-    </div>
-    ${error ? notice(error, 'refresh', '刷新棋局') : notice(match.error, 'retry', '重试')}
-  </section>`;
+function playView(result) {
+  return matchLayout({
+    opponent: player('ai'),
+    player: player('human'),
+    board: boardView(),
+    status: result?.status ?? turnStatus(),
+    notice: matchFeedback(error, match.error, busy),
+  });
 }
 
 function render(focus) {
   const opening = isSetup();
-  const meta = opening ? '' : `<span class="match-meta">${html(match.config.modelName)} · ${html(effortName(match.config.effort))}</span>`;
+  const result = match?.result ? resultView(match.result) : null;
   main.innerHTML = `<div class="junqi-shell ${opening ? '' : 'playing'}">
-    <div class="junqi-heading"><h1 tabindex="-1">军棋 <span>翻棋</span></h1>${meta}</div>
-    ${opening ? setupView() : matchView()}
+    ${gameToolbar(opening ? null : match, busy)}
+    ${opening ? `<div class="junqi-heading"><h1 tabindex="-1">军棋 <span>翻棋</span></h1></div>${setupView()}` : playView(result)}
   </div>`;
   if (focus) main.querySelector(focus)?.focus({ preventScroll: true });
+  showResult(match, result, busy);
 }
 
 main.addEventListener('change', ({ target }) => {

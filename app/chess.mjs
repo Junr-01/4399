@@ -1,6 +1,8 @@
-import { effortName, effortOption, escapeHtml as html, selectModel } from './game-models.mjs';
+import { effortOption, escapeHtml as html, selectModel } from './game-models.mjs';
+import { createResultDialog, gameToolbar, matchFeedback, matchLayout, matchPlayer, matchResult } from './match-ui.mjs';
 
 const main = document.querySelector('#chess');
+const showResult = createResultDialog(main);
 const api = '/api/chess';
 const colors = { white: '白方', black: '黑方' };
 const choices = { white: '执白', black: '执黑', random: '随机' };
@@ -97,7 +99,7 @@ async function perform(work, focus) {
   catch (failure) { showError(failure); }
   finally {
     busy = false;
-    render(previous !== isSetup() ? 'h1' : focus);
+    render(previous !== isSetup() ? (isSetup() ? 'h1' : '.match-status') : focus);
     watchTurn();
   }
 }
@@ -127,15 +129,18 @@ function board(preview = false) {
     const selectable = origins.has(square);
     const capture = target && (piece || (selectedPiece === 'p' && square[0] !== selected[0]));
     const checked = !preview && match.check && piece === (match.side === 'white' ? 'K' : 'k');
+    const from = square === last?.from;
+    const to = square === last?.to;
     const classes = ['chess-square', (Math.floor(index / 8) + index) % 2 && 'dark',
-      (square === last?.from || square === last?.to) && 'last', square === selected && !preview && 'selected',
+      from && 'last-from', to && 'last-to', square === selected && !preview && 'selected',
       target && 'target', capture && 'capture',
       checked && 'in-check'].filter(Boolean).join(' ');
-    const label = piece ? `${colors[sideOf(piece)]}${pieces[piece.toLowerCase()]} ${square}` : `移至 ${square}`;
+    const location = piece ? `${colors[sideOf(piece)]}${pieces[piece.toLowerCase()]} ${square}` : target ? `移至 ${square}` : square;
+    const label = location + (from ? ' 最近一步起点' : to ? ' 最近一步落点' : '');
     const contents = piece ? glyph(piece.toLowerCase(), sideOf(piece)) : '';
     return target || selectable
       ? `<button class="${classes}" type="button" data-square="${square}" aria-label="${label}" ${selectable ? `aria-pressed="${square === selected}"` : ''}>${contents}</button>`
-      : `<span class="${classes}" ${!preview && piece ? `role="img" aria-label="${label}"` : 'aria-hidden="true"'}>${contents}</span>`;
+      : `<span class="${classes}" ${!preview && (piece || from || to) ? `role="img" aria-label="${label}"` : 'aria-hidden="true"'}>${contents}</span>`;
   }).join('');
   const labels = (name, chars) => `<div class="chess-coords ${name}" aria-hidden="true">${Array.from(chars, char => `<span>${char}</span>`).join('')}</div>`;
   return `<div class="chess-board" ${preview ? 'aria-hidden="true"' : 'role="group" aria-label="国际象棋棋盘"'}>
@@ -172,38 +177,18 @@ function setupView() {
   </form></section>`;
 }
 
-function player(side, label) {
-  const active = !match.result && match.side === side;
-  return `<div class="player ${active ? 'active' : ''}">${marker(side)}${label}<span>${colors[side]}</span>
-    ${active ? '<i class="turn-dot" aria-hidden="true"></i>' : ''}</div>`;
-}
-
-function turnStatus() {
-  if (match.result) {
-    const { winner, reason } = match.result;
-    return `${winner ? winner === match.humanSide ? '你赢了' : 'AI 获胜' : '和棋'} · ${reasons[reason]}`;
-  }
-  const status = match.side === match.humanSide ? '轮到你走棋' : match.thinking ? 'AI 正在思考' : '轮到 AI';
-  return match.check ? `${status} · ${colors[match.side]}被将军` : status;
-}
-
-function playView() {
-  const last = match.lastMove;
-  const notice = error || match.error;
-  return `<section>
-    <div class="players">${player(opposite(match.humanSide), 'AI')}${player(match.humanSide, '你')}</div>
-    ${board()}
-    <div class="match-controls">
-      <div class="status-line"><p class="turn-status" role="status">${turnStatus()}</p>
-        ${last ? `<p class="move-summary">上一着 ${last.from} → ${last.to}${last.promotion ? ` · 升变为${pieces[last.promotion]}` : ''}</p>` : ''}</div>
-      <div class="play-actions">
-        <button class="secondary" type="button" data-action="undo" ${disabled(busy || !match.canUndo)}>↶ 悔棋</button>
-        <button class="secondary" type="button" data-action="pause" ${disabled(busy)}>↻ 重新开始</button>
-      </div>
-    </div>
-    ${notice ? `<p class="match-error" role="alert">${html(notice)}</p>
-      <div class="error-actions"><button class="secondary" type="button" data-action="${error ? 'refresh' : 'retry'}">${error ? '刷新棋局' : '重试'}</button></div>` : ''}
-  </section>`;
+function playView(result) {
+  const { humanSide, side, check, thinking } = match;
+  const aiSide = opposite(humanSide);
+  const humanTurn = humanSide === side;
+  const turn = error || match.error ? '对局暂未更新' : humanTurn ? '轮到你走棋' : thinking ? 'AI 正在思考' : '轮到 AI';
+  return matchLayout({
+    opponent: matchPlayer('AI', colors[aiSide], marker(aiSide), !result && !humanTurn),
+    player: matchPlayer('你', colors[humanSide], marker(humanSide), !result && humanTurn),
+    board: board(),
+    status: result?.status ?? (check ? `${turn} · ${colors[side]}被将军` : turn),
+    notice: matchFeedback(error, match.error, busy),
+  });
 }
 
 function promotionDialog() {
@@ -216,19 +201,24 @@ function promotionDialog() {
 }
 
 function render(focus) {
-  const meta = isSetup() ? '' : `<span class="match-model">${html(match.config.modelName)} · ${html(effortName(match.config.effort))}</span>`;
-  main.innerHTML = `<div class="game-shell ${isSetup() ? 'setup-shell' : 'playing'}">
-    <div class="game-heading"><h1 tabindex="-1">国际象棋</h1>${meta}</div>
-    ${isSetup() ? setupView() : playView()}${promotion ? promotionDialog() : ''}
+  const setup = isSetup();
+  const result = match?.result ? matchResult(match.result.winner, match.humanSide, reasons[match.result.reason]) : null;
+  main.innerHTML = `<div class="game-shell ${setup ? 'setup-shell' : 'playing'}">
+    ${gameToolbar(setup ? null : match, busy)}
+    ${setup ? `<div class="game-heading"><h1 tabindex="-1">国际象棋</h1></div>${setupView()}` : playView(result)}
+    ${promotion ? promotionDialog() : ''}
   </div>`;
   if (promotion) {
-    const dialog = main.querySelector('dialog');
+    const dialog = main.querySelector('.promotion-dialog');
     dialog.addEventListener('cancel', event => {
       event.preventDefault();
       cancelPromotion();
     });
     dialog.showModal();
-  } else if (focus) main.querySelector(focus)?.focus({ preventScroll: true });
+  } else {
+    if (focus) main.querySelector(focus)?.focus({ preventScroll: true });
+    showResult(match, result, busy);
+  }
 }
 
 function cancelPromotion() {

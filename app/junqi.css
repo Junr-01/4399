@@ -11,31 +11,16 @@
   min-height: 100svh;
 }
 
-.junqi-header {
-  max-width: 1040px;
-  height: 72px;
-  margin: auto;
-  padding: 0 32px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.junqi-header a { text-decoration: none; color: inherit; }
-.junqi-header .brand { gap: 8px; font-size: 21px; font-weight: 760; letter-spacing: -1px; }
-.junqi-header .brand > span > span { color: #829768; }
-.junqi-header .back-link { padding: 12px 0; color: var(--muted); font-size: 12px; }
-
 #junqi {
   display: block;
-  padding: 6px 22px 24px;
+  padding: 20px 22px 24px;
   --board-width: min(410px, max(272px, calc((100svh - 235px) * .75)));
 }
 .junqi-shell { width: min(100%, var(--board-width)); margin: auto; }
-.junqi-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
+.junqi-heading { margin-bottom: 16px; }
 .junqi-heading h1 { display: flex; align-items: baseline; gap: 10px; margin: 0; font-size: clamp(25px, 5vw, 32px); font-weight: 710; letter-spacing: -.045em; white-space: nowrap; }
 .junqi-heading h1 span { font-size: 12px; font-weight: 540; color: var(--muted); letter-spacing: .02em; }
 .junqi-heading h1:focus { outline: none; }
-.match-meta { color: var(--muted); text-align: right; font-size: 11px; }
 
 .junqi-board {
   --board-paper: #eae9d9;
@@ -100,7 +85,15 @@
 .back-mark { font-size: .92em; font-weight: 580; }
 .site-name { color: #656f5c; font-size: clamp(7px, 1.9vw, 10px); white-space: nowrap; }
 button.board-point:hover .tile { filter: brightness(1.055); transform: translateY(-1px); }
-.board-point.last .tile { outline: 1.5px solid #808657; outline-offset: 2px; }
+.board-point:is(.last-from, .last-to)::before {
+  position: absolute;
+  inset: 3% 4%;
+  border: 3px solid var(--move-to);
+  border-radius: 7px;
+  content: "";
+  pointer-events: none;
+}
+.board-point.last-from::before { inset: 12% 10%; border: 2px dashed var(--move-from); }
 .board-point.selected .tile { outline: 2px solid #465e37; outline-offset: 3px; }
 .board-point.target:has(.tile) .tile { outline: 2px solid #a05841; outline-offset: 3px; }
 .board-point.target:not(:has(.tile))::after {
@@ -191,50 +184,21 @@ button.board-point:hover .tile { filter: brightness(1.055); transform: translate
 .start-match span { color: #cedbbf; font-size: 18px; }
 .resume-match { display: block; margin: 10px auto -5px; padding: 6px 12px; color: var(--muted); font-size: 12px; }
 
-.match-layout { display: grid; gap: 9px; }
-.junqi-shell.playing { width: min(100%, var(--board-width), max(272px, calc((100svh - 320px) * .75))); }
-.junqi-player { display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 4px 3px; color: var(--muted); }
-.junqi-player.active { color: var(--ink); }
+.junqi-shell.playing { width: min(100%, 410px, max(272px, calc((100svh - 150px) * .74))); }
 .player-mark { width: 11px; height: 11px; flex: 0 0 11px; border: 1px solid #a0a99a; border-radius: 50%; background: #e4e8e0; }
 .player-mark.red { border-color: #a76557; background: #b86d5c; }
 .player-mark.blue { border-color: #527d92; background: #6890a2; }
 .player-mark.unassigned { border-style: dashed; }
-.active .player-mark { outline: 1px solid #8a9d7d; outline-offset: 2px; }
-.player-name { display: flex; align-items: baseline; gap: 7px; font-size: 12px; }
-.player-name strong { font-weight: 700; }
-.player-name span { color: var(--muted); font-size: 11px; white-space: nowrap; }
-.mine-count { margin-left: auto; white-space: nowrap; font-size: 11px; }
-.mine-count b { color: var(--ink); font-weight: 680; }
-.match-footer { display: flex; align-items: center; justify-content: space-between; gap: 9px; }
-.match-status p { display: flex; align-items: center; gap: 7px; margin: 0 0 3px; font-size: 12px; font-weight: 680; }
-.match-status > span { display: block; color: var(--muted); font-size: 11px; line-height: 1.5; }
-.status-dot { flex: 0 0 6px; width: 6px; height: 6px; background: #738d56; border-radius: 50%; }
-.status-dot.thinking { animation: pulse 1s ease alternate infinite; }
-@keyframes pulse { to { opacity: .36; } }
-.match-actions { display: flex; align-items: center; gap: 5px; }
-.match-actions button, .error-actions button {
-  min-height: 34px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 5px 8px;
-  background: #fff9;
-  font-size: 11px;
-  white-space: nowrap;
-}
-.match-actions button:hover:not(:disabled), .error-actions button:hover { background: #e8eedf; }
 .junqi-page button:disabled { opacity: .48; cursor: default; }
 
 .match-error { margin: 0; color: var(--red); font-size: 12px; line-height: 1.5; }
 .setup-sheet .match-error { margin-top: 12px; }
-.error-actions { display: flex; justify-content: flex-start; }
-.setup-sheet .error-actions { margin-top: 6px; }
+.setup-sheet > .match-button { margin-top: 6px; }
+.field-note { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
 
 @media (max-width: 620px) {
-  .junqi-header { height: 62px; padding-inline: 20px; }
-  #junqi { padding-inline: 15px; }
+  #junqi { padding: 12px 15px 24px; }
 }
 @media (max-width: 360px) {
   .setup-sheet { padding: 17px; }
-  .match-actions button { padding-inline: 5px; }
 }
-@media (prefers-reduced-motion: reduce) { .status-dot.thinking { animation: none; } }
