@@ -104,13 +104,6 @@ main {
 .dot.is-selected { width: 20px; }
 .dot.is-selected::after { background: #7c8e64; width: 20px; border-radius: 8px; }
 
-.game-dialog { border: 1px solid #e3e8db; border-radius: 24px; padding: 32px; background: #fafbf7; max-width: 350px; width: calc(100% - 40px); text-align: center; color: var(--ink); box-shadow: var(--shadow); }
-.game-dialog::backdrop { background: #2730204d; backdrop-filter: blur(6px); }
-.dialog-icon { margin: 0 auto 20px; width: 46px; height: 46px; }
-.game-dialog h2 { font-size: 20px; font-weight: 550; }
-.game-dialog p { font-size: 12px; line-height: 1.9; color: #7a846e; margin: 13px 0 24px; }
-.return-button { background: var(--ink); color: #f7faef; border-radius: 15px; padding: 15px 22px; width: 100%; font-size: 13px; }
-.return-button:hover { background: #44543a; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 @media (min-width: 1400px) {

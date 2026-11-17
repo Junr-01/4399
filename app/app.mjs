@@ -3,7 +3,6 @@ import { wrapIndex, cardOffset } from './selection.mjs';
 
 const track = document.querySelector('#game-track');
 const dots = document.querySelector('#game-dots');
-const dialog = document.querySelector('#game-dialog');
 const status = document.querySelector('#selection-status');
 let selected = 0;
 let gesture = null;
@@ -63,13 +62,7 @@ function selectGame(index) {
 }
 
 function openGame() {
-  const game = games[selected];
-  if (game.href) {
-    location.assign(game.href);
-    return;
-  }
-  document.querySelector('#game-dialog-title').textContent = `${game.name}正在准备中`;
-  dialog.showModal();
+  location.assign(games[selected].href);
 }
 
 document.querySelector('#previous-game').addEventListener('click', () => selectGame(selected - 1));
@@ -88,7 +81,7 @@ track.addEventListener('click', (event) => {
 });
 
 document.addEventListener('keydown', (event) => {
-  if (dialog.open || event.altKey || event.ctrlKey || event.metaKey) return;
+  if (event.altKey || event.ctrlKey || event.metaKey) return;
   if (event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
   const key = event.key.toLowerCase();
   if (['arrowleft', 'arrowright', 'a', 'd'].includes(key)) {
@@ -115,5 +108,4 @@ document.addEventListener('pointerup', (event) => {
   }
 });
 document.addEventListener('pointercancel', () => { gesture = null; });
-dialog.addEventListener('close', () => cards[selected].focus({ preventScroll: true }));
 selectGame(0);
