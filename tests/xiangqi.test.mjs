@@ -67,14 +67,12 @@ test('reads the current position, accepts a legal AI move, and keeps the player 
     assert.deepEqual(options.dynamicTools.map(({ name }) => name), ['get_position', 'move_piece']);
     assert.equal(input.text, '我已落子');
     const position = input.callTool('get_position', {});
-    assert.equal(position.aiSide, 'black');
-    assert.equal(position.sideToMove, 'black');
+    assert.deepEqual(Object.keys(position).sort(), ['adjudication', 'board', 'check', 'lastMove', 'legal', 'moveCommitted']);
     assert.equal(position.moveCommitted, false);
     assert.equal(position.board.length, 90);
     assert.equal(position.board[at('e3')], 'C');
     assert.equal(position.board[at('h3')], null);
     assert.deepEqual(position.lastMove, { from: at('h3'), to: at('e3'), side: 'red' });
-    assert.deepEqual(position.recentMoves, [position.lastMove]);
     assert.equal(position.check, false);
     assert.equal(position.adjudication, null);
     assert(position.legal.some(({ from, to }) => from === at('b10') && to === at('c8')));
@@ -87,7 +85,7 @@ test('reads the current position, accepts a legal AI move, and keeps the player 
     assert.throws(() => movePiece(input, 'a10', 'a9'), /本回合已走棋/);
     const committed = input.callTool('get_position', {});
     assert.equal(committed.moveCommitted, true);
-    assert.equal(committed.sideToMove, 'red');
+    assert.deepEqual(committed.lastMove, { from: at('b10'), to: at('c8'), side: 'black' });
     assert.deepEqual(committed.legal, []);
     placed.resolve();
     await finish.promise;
@@ -279,8 +277,7 @@ test('shows the AI a pending variation and restores the adjudication on undo', a
   const varied = await settled(path);
   assert.equal(varied.adjudication, null);
   assert.deepEqual(notices.at(-1).adjudication, { ...pending, remaining: 1 });
-  assert.equal(notices.at(-1).recentMoves.length, 8);
-  assert.deepEqual(notices.at(-1).recentMoves.at(-1), { from: at('b1'), to: at('c3'), side: 'red' });
+  assert.deepEqual(notices.at(-1).lastMove, { from: at('b1'), to: at('c3'), side: 'red' });
   const rewound = await request(path, { action: 'undo', revision: varied.revision });
   assert.deepEqual(rewound.adjudication, pending);
   assert.deepEqual(rewound.board, state.board);
@@ -335,11 +332,14 @@ test('keeps natural move count at the player boundary through a capture, undo, a
   assert.equal(beforeDraw.canClaimDraw, false);
 });
 
-test('keeps shared instructions and records resolved colors in each workspace', async t => {
+test('adds shared tool instructions once, preserves local text, and records resolved colors', async t => {
   const { origin, request, settled, xiangqiDirectory } = await game(t, input => movePiece(input, 'h3', 'e3'));
   await request('/models');
   const shared = join(xiangqiDirectory, 'AGENTS.md');
-  assert.match(await readFile(shared, 'utf8'), /中国象棋职业选手[\s\S]*4399 中国象棋规则/);
+  const toolGuide = (await readFile(new URL('../docs/xiangqi-prompts/tools.md', import.meta.url), 'utf8')).trimEnd();
+  const defaults = await readFile(shared, 'utf8');
+  assert.match(defaults, /中国象棋职业选手[\s\S]*4399 中国象棋规则[\s\S]*# 对弈工具/);
+  assert(defaults.includes(toolGuide));
   await writeFile(shared, '本地指令\n');
   const red = await request('/matches', config, 201);
   const black = await request('/matches', { ...config, side: 'black' }, 201);
@@ -353,7 +353,9 @@ test('keeps shared instructions and records resolved colors in each workspace', 
   const response = await fetch(origin + '/api/xiangqi/matches/' + black.id, { method: 'DELETE', headers: { Origin: origin } });
   assert.equal(response.status, 204);
   assert.match(await readInstructions(black), /你执红先走/);
-  assert.equal(await readFile(shared, 'utf8'), '本地指令\n');
+  const upgraded = await readFile(shared, 'utf8');
+  assert(upgraded.startsWith('本地指令\n'));
+  assert.equal(upgraded.split(toolGuide).length - 1, 1);
 });
 
 test('resumes a committed response from a pause without allowing a second move', { timeout: 5000 }, async t => {
@@ -541,6 +543,12 @@ test('reuses a healthy App Server thread and rebuilds failed threads in the same
       }
       if (id === 'move') {
         assert(result.success);
+        assert.equal(result.contentItems[0].text, '走棋成功。');
+        return call('duplicate', 'move_piece', { from: 0, to: 9 });
+      }
+      if (id === 'duplicate') {
+        assert.equal(result.success, false);
+        assert.equal(result.contentItems[0].text, '本回合已走棋。');
         complete('completed');
       }
     });

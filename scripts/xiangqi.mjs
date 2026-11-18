@@ -7,12 +7,12 @@ const point = { type: 'integer', minimum: 0, maximum: 89 };
 const xiangqiTools = [
   {
     type: 'function', name: 'get_position',
-    description: '每回合先查看当前局面。board 按黑上红下逐行排列，每行 9 点，左上角为 0。大写是红方，小写是黑方，null 是空点。k、a、e、h、r、c、p 依次表示帅将、仕士、相象、马、车、炮、兵卒。从 legal 选择一着。adjudication 指明变着和闲着要求。',
+    description: '查看当前象棋局面。',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
     type: 'function', name: 'move_piece',
-    description: '按 get_position 的点号从 from 移到 to。着法不合法时按原因改选，成功后结束当前 AI 回合。',
+    description: '在当前象棋局面落子',
     inputSchema: {
       type: 'object', properties: { from: point, to: point }, required: ['from', 'to'], additionalProperties: false,
     },
@@ -40,12 +40,12 @@ function snapshot(match) {
 
 function callTurnTool(match, turn, name, args) {
   if (name === 'get_position') {
-    const { board, side, legal, moves, check, adjudication } = match.game.snapshot();
-    const recentMoves = moves.slice(-8).map(({ from, to, side }) => ({ from, to, side }));
+    const { board, legal, moves, check, adjudication } = match.game.snapshot();
+    const last = moves.at(-1);
     return {
       board: board.map(piece => piece && (piece.side === 'red' ? piece.type.toUpperCase() : piece.type)),
-      aiSide: turn.side, sideToMove: side, check, lastMove: recentMoves.at(-1) ?? null,
-      recentMoves, adjudication, moveCommitted: turn.moveCommitted, legal: turn.moveCommitted ? [] : legal,
+      check, lastMove: last ? { from: last.from, to: last.to, side: last.side } : null,
+      adjudication, moveCommitted: turn.moveCommitted, legal: turn.moveCommitted ? [] : legal,
     };
   }
   if (name !== 'move_piece') throw new GameError(400, '未知的中国象棋工具。');
@@ -59,7 +59,7 @@ function callTurnTool(match, turn, name, args) {
   if (!match.game.play({ from, to })) throw new GameError(400, moveRejectionReason(board, side, { from, to }));
   turn.moveCommitted = true;
   advanceRevision(match, true);
-  return '走棋成功。请结束当前 AI 回合。';
+  return '走棋成功。';
 }
 
 function recoveryMessage(turn) {
@@ -142,7 +142,7 @@ function act(match, input) {
 }
 
 export function createXiangqiApi(codex, directory) {
-  const workspace = createGameWorkspace('xiangqi', directory);
+  const workspace = createGameWorkspace('xiangqi', directory, { includeTools: true });
   return createMatchApi('xiangqi', codex, {
     initialize: workspace.initialize,
     prepare(_, id, { humanSide }) {

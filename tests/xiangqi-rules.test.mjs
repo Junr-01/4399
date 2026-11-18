@@ -69,6 +69,15 @@ test('a rook repeatedly chasing an unprotected horse must vary', () => {
   assert.deepEqual(pending.adjudication, { side: 'red', reason: 'perpetual-chase', remaining: 2 });
 });
 
+for (const playedPlies of [0, 60]) {
+  test(`figure 12 requires black to vary from a cannon chase after ${playedPlies / 2} prior rounds`, () => {
+    const game = createXiangqi({ placement: '3k2P2/P3a4/6rc1/8R/9/9/9/E3E4/4A4/4KA3', playedPlies });
+    const cycle = [['i7', 'h7'], ['h8', 'i8'], ['h7', 'i7'], ['i8', 'h8']];
+    assert.deepEqual(play(game, cycle, 3).adjudication, { side: 'black', reason: 'perpetual-chase', remaining: 2 });
+    assert.deepEqual(play(game, cycle).result, { winner: 'red', reason: 'failure-to-vary' });
+  });
+}
+
 function position(board) {
   return board.map(piece => piece ? piece.side[0] + piece.type : '..').join('');
 }
@@ -238,6 +247,153 @@ test('figure 13 allows a cycle of checks and safe cannon exchanges', () => {
   const cycle = [['e7', 'd7'], ['d10', 'e10'], ['d7', 'e7'], ['e10', 'd10']];
   assert.equal(play(game, cycle, 3).adjudication.side, null);
   assert.deepEqual(play(game, cycle).result, { winner: null, reason: 'repetition' });
+});
+
+test('figure 23 requires red to vary when the opposing cannon would lose a rook by capturing', () => {
+  const game = createXiangqi({ placement: '2eakr3/4a4/4e4/9/9/9/1r7/1c3A2E/2R1A2H1/1R3K3', playedPlies: 60 });
+  const cycle = [['c2', 'c3'], ['b3', 'b2'], ['c3', 'c2'], ['b2', 'b3']];
+  assert.deepEqual(play(game, cycle, 3).adjudication, { side: 'red', reason: 'perpetual-chase', remaining: 2 });
+  assert.deepEqual(play(game, cycle.slice(0, 3)).result, { winner: 'black', reason: 'failure-to-vary' });
+});
+
+test('figure 24 allows a draw when a pawn-for-horse offer alternates with a chase', () => {
+  const game = createXiangqi({ placement: '2P1kh3/4r4/9/9/p3p3R/9/4P4/4E4/9/2EAKA3', playedPlies: 60 });
+  const cycle = [['i6', 'i10'], ['e9', 'f9'], ['i10', 'i6'], ['f9', 'e9']];
+  assert.equal(play(game, cycle, 3).adjudication.side, null);
+  assert.deepEqual(play(game, cycle).result, { winner: null, reason: 'repetition' });
+});
+
+test('figure 16 still requires red to vary when successive checks create a new rook capture', () => {
+  const game = createXiangqi({ placement: '3a1k3/4a4/3ce4/P2rp2R1/6e2/9/9/5C3/4A4/4KA3', playedPlies: 60 });
+  const cycle = [['h7', 'h10'], ['f10', 'f9'], ['h10', 'h7'], ['f9', 'f10']];
+  assert.deepEqual(play(game, cycle, 3).adjudication, { side: 'red', reason: 'perpetual-chase', remaining: 2 });
+});
+
+test('figure 21 requires black to vary when a safe exchange does not cover a new sacrifice', () => {
+  const game = createXiangqi({ placement: '2e1ka3/1c2aR1c1/4e4/p1p4hp/4hH3/2P1C4/P5PrP/2H1EC3/9/3AKAE2', playedPlies: 60 });
+  const cycle = [['f9', 'f7'], ['b9', 'b7'], ['f7', 'f9'], ['b7', 'b9']];
+  assert.deepEqual(play(game, cycle, 3).adjudication, { side: 'black', reason: 'perpetual-chase', remaining: 2 });
+});
+
+test('figure 5 allows a draw when a rook check alternates with a move adding no capture', () => {
+  const game = createXiangqi({ placement: '2R2a3/4k4/3a5/9/8p/9/1p1rph3/3CE4/4A4/2E1KA3', playedPlies: 60 });
+  const cycle = [['c10', 'c5'], ['e9', 'e10'], ['c5', 'c10'], ['e10', 'e9']];
+  assert.equal(play(game, cycle, 3).adjudication.side, null);
+  assert.deepEqual(play(game, cycle).result, { winner: null, reason: 'repetition' });
+});
+
+for (const [figure, placement, cycle] of [
+  [32, '2e1kc3/4a4/4ea3/4P1H2/9/2E6/9/4Eh3/5K3/9', [['g7', 'h9'], ['f10', 'f9'], ['h9', 'g7'], ['f9', 'f10']]],
+  [33, '2e1k4/1H1ca4/5a3/5P3/9/9/p8/5A3/4A1h2/3K5', [['b9', 'c7'], ['d9', 'd10'], ['c7', 'b9'], ['d10', 'd9']]],
+]) {
+  test(`reference figure ${figure} allows a draw after an even exchange and a separate king or pawn capture`, () => {
+    const game = createXiangqi({ placement, playedPlies: 60 });
+    assert.equal(play(game, cycle, 3).adjudication.side, null);
+    assert.deepEqual(play(game, cycle).result, { winner: null, reason: 'repetition' });
+  });
+}
+
+for (const [figure, placement, cycle, side] of [
+  [39, '4kae2/4arHC1/4e1R2/4h4/2p3pc1/9/4P3P/4E4/4A4/2EAK4',
+    [['g8', 'g7'], ['e7', 'f5'], ['g7', 'g8'], ['f5', 'e7']], 'black'],
+  [49, '3akae2/3ch1C2/4e2C1/pH6R/1r1h2p2/9/P1p1P1P1P/1c2E4/5H3/2EAKA3',
+    [['b7', 'c9'], ['b6', 'c6'], ['c9', 'b7'], ['c6', 'b6']], 'red'],
+  [50, '3akae2/3ch1C2/4e2C1/pH6R/1r1h2p2/9/P1p1P1P1P/4E4/9/2EAKA3',
+    [['b7', 'c9'], ['b6', 'c6'], ['c9', 'b7'], ['c6', 'b6']], 'red'],
+]) {
+  test(`reference figure ${figure} counts moves by a piece that sustains a joint chase`, () => {
+    const game = createXiangqi({ placement, playedPlies: 60 });
+    assert.deepEqual(play(game, cycle, 3).adjudication, { side, reason: 'perpetual-chase', remaining: 2 });
+  });
+}
+
+test('reference figure 45 counts a cannon joining an existing chase of the same elephant', () => {
+  const game = createXiangqi({ placement: '3a1kC2/4ac2h/4e3r/p2P1R2p/4p1e2/9/P3PH2P/4E4/4A4/2EAK4', playedPlies: 60 });
+  const cycle = [['g10', 'i10'], ['i9', 'g8'], ['i10', 'g10'], ['g8', 'i9']];
+  assert.equal(play(game, cycle, 3).adjudication.side, null);
+  assert.deepEqual(play(game, cycle).result, { winner: null, reason: 'repetition' });
+});
+
+test('figure 28 requires black to vary against a cycle mixing solo and joint chases', () => {
+  const game = createXiangqi({ placement: 'CR1akae1r/9/2h1e1h2/2p5p/6p2/2P6/r3P1P1P/4CcH2/9/2EAK1ER1', playedPlies: 60 });
+  for (const horse of ['e9', 'e7']) {
+    const cycle = [['b10', 'c10'], ['c8', horse], ['c10', 'b10'], [horse, 'c8']];
+    assert.deepEqual(play(game, cycle, 3).adjudication, { side: 'black', reason: 'perpetual-chase', remaining: 2 });
+    game.undoTo(0);
+  }
+});
+
+test('reference figure 4 allows a draw when a new cannon screen invites a safe exchange', () => {
+  const game = createXiangqi({ placement: '1reakaer1/9/1Ch1c1h1c/p1p1p2Cp/6p2/9/P1P1P1P1P/2H1E1H2/9/1R1AKAER1', playedPlies: 60 });
+  const cycle = [['b8', 'b7'], ['c8', 'a9'], ['b7', 'b8'], ['a9', 'c8']];
+  assert.equal(play(game, cycle, 3).adjudication.side, null);
+  assert.deepEqual(play(game, cycle).result, { winner: null, reason: 'repetition' });
+});
+
+test('reference figure 27 still requires a change when trading separate rooks would break even', () => {
+  const game = createXiangqi({ placement: '2ea1k3/4a4/4e4/R2C1rp1p/2p6/6P2/9/3AE4/2r1A4/3HK1E2', playedPlies: 60 });
+  const cycle = [['d7', 'c7'], ['c2', 'd2'], ['c7', 'd7'], ['d2', 'c2']];
+  assert.deepEqual(play(game, cycle, 3).adjudication, { side: 'red', reason: 'perpetual-chase', remaining: 2 });
+});
+
+test('reference figure 11 distinguishes a discovered cannon check from a pawn chasing alone', () => {
+  const game = createXiangqi({ placement: '3k4C/4a4/4e3e/p8/5P2P/4c4/5p3/4EA3/4A4/4K1E2', playedPlies: 60 });
+  const cycle = [['e1', 'f1'], ['e5', 'f5'], ['f1', 'e1'], ['f5', 'e5']];
+  assert.equal(play(game, cycle, 3).adjudication.side, null);
+  assert.deepEqual(play(game, cycle).result, { winner: null, reason: 'repetition' });
+});
+
+test('reference figure 34 counts a rook escaping a counterattack while sustaining a chase', () => {
+  const game = createXiangqi({ placement: '3k1ae2/4a4/4e4/2p4R1/6p2/3r5/6P1P/4EA3/2C1K4/6E1c', playedPlies: 60 });
+  const cycle = [['h7', 'h1'], ['i1', 'i3'], ['h1', 'h7'], ['i3', 'i1']];
+  assert.deepEqual(play(game, cycle, 3).adjudication, { side: 'red', reason: 'perpetual-chase', remaining: 2 });
+});
+
+test('reference figure 22 does not credit a chase to a reply when the opponent broke its own support', () => {
+  const game = createXiangqi({ placement: '3a1k3/4a4/5c3/2p1C4/4r4/5R3/2P1P4/6H2/4A4/2c1KA3', playedPlies: 60 });
+  const cycle = [['f5', 'e5'], ['f8', 'b8'], ['e5', 'f5'], ['b8', 'f8']];
+  assert.equal(play(game, cycle, 3).adjudication.side, null);
+  assert.deepEqual(play(game, cycle).result, { winner: null, reason: 'repetition' });
+});
+
+test('reference figure 35 counts the cannon chase made viable by defusing mate', () => {
+  const game = createXiangqi({ placement: '2eak4/4a4/r1h1e4/p1R2H3/2p6/5r3/P1c3P2/4E3H/R8/2EAKA3', playedPlies: 60 });
+  const cycle = [['f7', 'd6'], ['f5', 'd5'], ['d6', 'f7'], ['d5', 'f5']];
+  assert.equal(play(game, cycle, 3).adjudication.side, null);
+  assert.deepEqual(play(game, cycle).result, { winner: null, reason: 'repetition' });
+});
+
+test('reference figure 7 allows a draw when the only follow-up is a pawn capture', () => {
+  const game = createXiangqi({ placement: '3a1k3/3Pa4/e8/7R1/9/2P6/c1php4/3AE4/4A4/4K1E2', playedPlies: 60 });
+  const cycle = [['h7', 'h10'], ['f10', 'f9'], ['h10', 'h7'], ['f9', 'f10']];
+  assert.equal(play(game, cycle, 3).adjudication.side, null);
+  assert.deepEqual(play(game, cycle).result, { winner: null, reason: 'repetition' });
+});
+
+test('reference figure 25 counts a rook capture when either recapture allows immediate mate', () => {
+  const game = createXiangqi({ placement: '2ea1ke2/4a2r1/4c1h2/p7p/2p2rpc1/4R4/P1PR4P/2H1C1H2/4A4/2EK1AE2', playedPlies: 60 });
+  const cycle = [['e3', 'f3'], ['f10', 'e10'], ['f3', 'e3'], ['e10', 'f10']];
+  assert.deepEqual(play(game, cycle, 3).adjudication, { side: 'red', reason: 'perpetual-chase', remaining: 2 });
+});
+
+test('reference figure 30 does not credit an incidental pawn capture to defensive king moves', () => {
+  const game = createXiangqi({ placement: '2e2R3/5P3/e3k3h/5hp2/2P6/9/1pp6/3CE4/4A4/4KAE1r', playedPlies: 60 });
+  const cycle = [['f10', 'g10'], ['e8', 'f8'], ['g10', 'f10'], ['f8', 'e8']];
+  assert.deepEqual(play(game, cycle, 3).adjudication, { side: 'red', reason: 'perpetual-mate-threat', remaining: 2 });
+});
+
+test('reference figure 28 allows a draw when the threatened gain only offsets a lost piece', () => {
+  const game = createXiangqi({ placement: '3a1k3/h1H1a4/2r6/9/9/2P5p/9/7R1/4A4/3AK4', playedPlies: 60 });
+  const cycle = [['h3', 'f3'], ['e9', 'f8'], ['f3', 'h3'], ['f8', 'e9']];
+  assert.equal(play(game, cycle, 3).adjudication.side, null);
+  assert.deepEqual(play(game, cycle).result, { winner: null, reason: 'repetition' });
+});
+
+test('reference figure 16 treats a rook-escorted pawn as a joint chase', () => {
+  const game = createXiangqi({ placement: '4k4/9/3ae4/4PR3/4r4/9/5p3/4EA3/9/2E1K4', playedPlies: 60 });
+  const cycle = [['e7', 'd7'], ['e6', 'd6'], ['d7', 'e7'], ['d6', 'e6']];
+  assert.deepEqual(play(game, cycle, 3).adjudication, { side: 'red', reason: 'perpetual-chase', remaining: 2 });
+  assert.deepEqual(play(game, cycle.slice(0, 3)).result, { winner: 'black', reason: 'failure-to-vary' });
 });
 
 test('article 23.2 includes an outside first move unless it was a capture', () => {

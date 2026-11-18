@@ -1,35 +1,67 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { access, link, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, link, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 export const gameRootMarker = '.4399-root';
 
-export function createGameWorkspace(game, directory = join(homedir(), '.4399', game)) {
-  const prompts = new URL(`../docs/${game}-prompts/`, import.meta.url);
+function withTools(instructions, tools) {
+  const startMarker = '<!-- 4399:tools:start -->';
+  const endMarker = '<!-- 4399:tools:end -->';
+  const section = `${startMarker}\n${tools.trimEnd()}\n${endMarker}`;
+  const start = instructions.indexOf(startMarker);
+  const end = instructions.indexOf(endMarker, start + startMarker.length);
+  if (start >= 0 && end >= 0) {
+    return instructions.slice(0, start) + section + instructions.slice(end + endMarker.length);
+  }
+  const gap = !instructions || instructions.endsWith('\n\n') ? '' : instructions.endsWith('\n') ? '\n' : '\n\n';
+  return instructions + gap + section + '\n';
+}
 
-  async function initialize() {
+export function createGameWorkspace(game, directory = join(homedir(), '.4399', game), { includeTools = false } = {}) {
+  const prompts = new URL(`../docs/${game}-prompts/`, import.meta.url);
+  const readPrompt = name => readFile(new URL(name, prompts), 'utf8');
+  let pending;
+
+  async function initializeWorkspace() {
     await mkdir(directory, { recursive: true, mode: 0o700 });
     await writeFile(join(directory, gameRootMarker), '', { flag: 'a', mode: 0o600 });
     const target = join(directory, 'AGENTS.md');
+    let existing;
     try {
-      await access(target);
-      return;
+      if (includeTools) existing = await readFile(target, 'utf8');
+      else {
+        await access(target);
+        return;
+      }
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
     }
 
-    const [role, rule] = await Promise.all(['role.md', 'rule.md'].map(name => readFile(new URL(name, prompts), 'utf8')));
+    let instructions = existing;
+    if (instructions === undefined) {
+      const [role, rule] = await Promise.all(['role.md', 'rule.md'].map(readPrompt));
+      instructions = `${role.trimEnd()}\n\n${rule.trimEnd()}\n`;
+    }
+    if (includeTools) instructions = withTools(instructions, await readPrompt('tools.md'));
+    if (instructions === existing) return;
+
     const staging = await mkdtemp(join(directory, '.instructions-'));
     try {
       const source = join(staging, 'AGENTS.md');
-      await writeFile(source, `${role.trimEnd()}\n\n${rule.trimEnd()}\n`, { mode: 0o600 });
-      await link(source, target);
+      await writeFile(source, instructions, { mode: 0o600 });
+      if (existing === undefined) await link(source, target);
+      else await rename(source, target);
     } catch (error) {
       if (error.code !== 'EEXIST') throw error;
     } finally {
       await rm(staging, { recursive: true, force: true });
     }
+  }
+
+  function initialize() {
+    pending ??= initializeWorkspace().finally(() => { pending = undefined; });
+    return pending;
   }
 
   function prepare(id, instructions) {

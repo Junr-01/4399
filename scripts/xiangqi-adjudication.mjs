@@ -57,9 +57,10 @@ function profile(kinds) {
     || allChasesTarget(target => target.type === 'r' || target.unrooted);
   const chaseOnly = attacks.size === 1 && chase.length > 0;
   const chaseRook = joint => chaseOnly && allChasesTarget(target => target.type === 'r' && target.joint === joint);
-  const chaseUnrooted = joint => chaseOnly && allChasesTarget(target => target.unrooted && target.joint === joint);
+  const soloUnrooted = chaseOnly && allChasesTarget(target => target.unrooted && !target.joint);
+  const jointUnrooted = chaseOnly && allChasesTarget(target => target.unrooted) && !soloUnrooted;
   const reason = attacks.has('mate') ? 'perpetual-mate-threat' : 'perpetual-chase';
-  return { requiresChange, severe, chaseRook, chaseUnrooted, reason };
+  return { requiresChange, severe, chaseRook, soloUnrooted, jointUnrooted, reason };
 }
 
 function obligatedSide(red, black) {
@@ -67,7 +68,7 @@ function obligatedSide(red, black) {
   if (!red.requiresChange) return null;
   if (red.severe !== black.severe) return red.severe ? 'red' : 'black';
   const soloAgainstJoint = (solo, joint) => solo.chaseRook(false) && joint.chaseRook(true)
-    || solo.chaseUnrooted(false) && joint.chaseUnrooted(true);
+    || solo.soloUnrooted && joint.jointUnrooted;
   const redMustVary = soloAgainstJoint(red, black);
   const blackMustVary = soloAgainstJoint(black, red);
   if (redMustVary !== blackMustVary) return redMustVary ? 'red' : 'black';
