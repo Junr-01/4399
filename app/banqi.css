@@ -1,0 +1,106 @@
+.banqi-page {
+  --ink: #3d3028;
+  --muted: #6e5e52;
+  --line: #e6dbcf;
+  --red: #8b3b2c;
+  background: #fbf8f3;
+  color: var(--ink);
+  display: block;
+  height: auto;
+  min-height: 100svh;
+}
+#banqi { display: block; padding: 20px 22px 28px; }
+.banqi-shell { width: min(100%, 650px); margin: auto; }
+.banqi-shell.playing { max-width: 620px; }
+
+.banqi-board {
+  width: 100%;
+  padding: clamp(5px, 1.8vw, 14px);
+  border: 1px solid #dfc6a8;
+  border-radius: 15px;
+  background: #f0dfc7;
+  box-shadow: inset 0 0 0 3px #fff5, 0 12px 28px #54351c12;
+}
+.banqi-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 1px;
+  border: 1px solid #ccab87;
+  border-radius: 5px;
+  overflow: hidden;
+  background: #ccab87;
+}
+.banqi-square {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-width: 0;
+  padding: 0;
+  background: #f9ecd7;
+  isolation: isolate;
+}
+.banqi-piece {
+  display: grid;
+  place-items: center;
+  width: 76%;
+  aspect-ratio: 1;
+  border: 1px solid #c6a17b;
+  border-radius: 50%;
+  background: #fff5e3;
+  color: #38332d;
+  box-shadow: inset 0 0 0 2px #fffc, 0 2px 0 #c6a17b, 0 3px 5px #6b4b2b2b;
+  font-family: "Kaiti SC", STKaiti, KaiTi, serif;
+  font-size: clamp(15px, 4.7vw, 32px);
+  font-weight: 700;
+  line-height: 1;
+  user-select: none;
+}
+.banqi-piece.red { color: var(--red); }
+.banqi-piece.back {
+  border-color: #b4966c;
+  background: #ead1a8;
+  box-shadow: inset 0 0 0 2px #fff6, 0 2px 0 #b4966c, 0 3px 5px #6b4b2b2b;
+}
+.banqi-piece.back::after {
+  width: 24%;
+  aspect-ratio: 1;
+  border: 1.5px solid #947650;
+  border-radius: 1px;
+  transform: rotate(45deg);
+  content: "";
+}
+button.banqi-square:hover { background: #eedbbd; }
+.banqi-square:focus-visible { outline: 2px solid #3d4132; outline-offset: -2px; z-index: 1; }
+.banqi-square.last-from { background: #dfebdc; }
+.banqi-square.last-to { background: #c9e4d5; }
+.banqi-square:is(.last-from, .last-to)::before {
+  position: absolute;
+  inset: 6%;
+  border: 3px solid var(--move-to);
+  border-radius: 5px;
+  content: "";
+  pointer-events: none;
+}
+.banqi-square.last-from::before { border: 2px dashed var(--move-from); }
+.banqi-square.selected .banqi-piece { outline: 2px solid #393f2d; outline-offset: 1px; }
+.banqi-square.capture .banqi-piece { outline: 2px solid #9a492f; outline-offset: 1px; }
+.banqi-square.target::after {
+  position: absolute;
+  width: 18%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #3e6f5b;
+  box-shadow: 0 0 0 1px #fafff6;
+  content: "";
+}
+
+.banqi-page .setup-stage .banqi-board { opacity: .66; }
+.banqi-page .setup-sheet { margin-block: 12px; }
+.banqi-page .player-mark.red { border-color: #a75548; background: #b96c5d; }
+.banqi-page .player-mark.black { border-color: #352d2c; background: #4b4140; }
+.banqi-page button:disabled { opacity: .48; cursor: default; }
+
+@media (max-width: 620px) {
+  #banqi { padding: 12px 10px 24px; }
+}

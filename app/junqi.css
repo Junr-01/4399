@@ -17,10 +17,6 @@
   --board-width: min(410px, max(272px, calc((100svh - 235px) * .75)));
 }
 .junqi-shell { width: min(100%, var(--board-width)); margin: auto; }
-.junqi-heading { margin-bottom: 16px; }
-.junqi-heading h1 { display: flex; align-items: baseline; gap: 10px; margin: 0; font-size: clamp(25px, 5vw, 32px); font-weight: 710; letter-spacing: -.045em; white-space: nowrap; }
-.junqi-heading h1 span { font-size: 12px; font-weight: 540; color: var(--muted); letter-spacing: .02em; }
-.junqi-heading h1:focus { outline: none; }
 
 .junqi-board {
   --board-paper: #eae9d9;
@@ -108,97 +104,13 @@ button.board-point:hover .tile { filter: brightness(1.055); transform: translate
 }
 .board-point.target:not(:has(.tile)) .site-name { visibility: hidden; }
 
-.setup-stage { display: grid; align-items: center; justify-items: center; isolation: isolate; }
-.setup-stage > * { grid-area: 1 / 1; }
 .setup-stage .junqi-board { width: 100%; opacity: .56; }
-.setup-sheet {
-  z-index: 1;
-  width: min(342px, calc(100% - 20px));
-  padding: 24px;
-  border: 1px solid #fff;
-  border-radius: 18px;
-  background: #fdfefbf7;
-  backdrop-filter: blur(9px);
-  box-shadow: 0 16px 44px #36422d25, 0 0 0 1px #3846300c;
-}
-.setup-sheet h2 { margin: 0 0 18px; font-size: 19px; font-weight: 690; }
-.setup-fields { display: grid; gap: 13px; }
-.setup-field { display: grid; gap: 6px; min-width: 0; color: var(--muted); font-size: 12px; font-weight: 550; }
-.setup-sheet fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
-.setup-sheet legend { margin-bottom: 6px; padding: 0; color: var(--muted); font-size: 12px; font-weight: 550; }
-.select-wrap { position: relative; }
-.select-wrap::after {
-  content: '';
-  position: absolute;
-  right: 14px;
-  top: 43%;
-  width: 6px;
-  height: 6px;
-  border: solid #6e7b65;
-  border-width: 0 1.4px 1.4px 0;
-  transform: rotate(45deg);
-  pointer-events: none;
-}
-.setup-field select {
-  appearance: none;
-  width: 100%;
-  min-height: 40px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  padding: 6px 28px 6px 10px;
-  background: #fff;
-  color: var(--ink);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-.first-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-.first-choices label { position: relative; cursor: pointer; }
-.first-choices input { position: absolute; opacity: 0; }
-.first-choices span {
-  display: grid;
-  place-items: center;
-  min-height: 39px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: #fff;
-  font-size: 12px;
-  white-space: nowrap;
-}
-.first-choices input:checked + span { background: #e7eddc; border-color: #a3b58e; color: #394c2f; }
-.first-choices input:focus-visible + span, .setup-field select:focus-visible { outline: 2px solid #6e8c54; outline-offset: 2px; }
-.start-match {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  min-height: 44px;
-  margin-top: 18px;
-  border-radius: 9px;
-  padding: 0 13px;
-  background: #35432f;
-  color: #fff;
-  font-size: 13px;
-}
-.start-match:hover:not(:disabled) { background: #46593a; }
-.start-match span { color: #cedbbf; font-size: 18px; }
-.resume-match { display: block; margin: 10px auto -5px; padding: 6px 12px; color: var(--muted); font-size: 12px; }
 
 .junqi-shell.playing { width: min(100%, 410px, max(272px, calc((100svh - 150px) * .74))); }
-.player-mark { width: 11px; height: 11px; flex: 0 0 11px; border: 1px solid #a0a99a; border-radius: 50%; background: #e4e8e0; }
 .player-mark.red { border-color: #a76557; background: #b86d5c; }
 .player-mark.blue { border-color: #527d92; background: #6890a2; }
-.player-mark.unassigned { border-style: dashed; }
 .junqi-page button:disabled { opacity: .48; cursor: default; }
-
-.match-error { margin: 0; color: var(--red); font-size: 12px; line-height: 1.5; }
-.setup-sheet .match-error { margin-top: 12px; }
-.setup-sheet > .match-button { margin-top: 6px; }
-.field-note { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
 
 @media (max-width: 620px) {
   #junqi { padding: 12px 15px 24px; }
-}
-@media (max-width: 360px) {
-  .setup-sheet { padding: 17px; }
 }

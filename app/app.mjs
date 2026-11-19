@@ -19,7 +19,7 @@ function createCard(game, index) {
   card.innerHTML = `
     <div class="cover">
       <div class="cover-title"><h2>${game.name}</h2><span>${game.englishName}</span></div>
-      <img class="cover-art" src="/assets/covers/${game.id}.svg" alt="" draggable="false">
+      <img class="cover-art" src="/assets/covers/${game.cover ?? game.id + '.svg'}" alt="" draggable="false">
       <div class="cover-bottom"><span>PLAY A LITTLE</span><em>${game.category}</em></div>
     </div>`;
   return card;

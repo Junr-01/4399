@@ -8,6 +8,7 @@ import { createGomokuApi } from './gomoku.mjs';
 import { createXiangqiApi } from './xiangqi.mjs';
 import { createChessApi } from './chess.mjs';
 import { createJunqiApi } from './junqi.mjs';
+import { createBanqiApi } from './banqi.mjs';
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const identity = createHash('sha256').update(root).digest('hex').slice(0, 16);
@@ -32,11 +33,13 @@ export function configuredPort() {
 
 export function createGameServer({
   codex = createCodexOpponent(version), gomokuDirectory, xiangqiDirectory, chessDirectory, junqiDirectory, junqiRandom,
+  banqiDirectory, banqiRandom,
 } = {}) {
   const gomoku = createGomokuApi(codex, gomokuDirectory);
   const xiangqi = createXiangqiApi(codex, xiangqiDirectory);
   const chess = createChessApi(codex, chessDirectory);
   const junqi = createJunqiApi(codex, junqiDirectory, junqiRandom);
+  const banqi = createBanqiApi(codex, banqiDirectory, banqiRandom);
   const server = createServer(async (request, response) => {
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('Cache-Control', 'no-cache');
@@ -56,6 +59,7 @@ export function createGameServer({
     if (pathname.startsWith('/api/xiangqi/')) return xiangqi.handle(request, response, pathname);
     if (pathname.startsWith('/api/chess/')) return chess.handle(request, response, pathname);
     if (pathname.startsWith('/api/junqi/')) return junqi.handle(request, response, pathname);
+    if (pathname.startsWith('/api/banqi/')) return banqi.handle(request, response, pathname);
     if (!['GET', 'HEAD'].includes(request.method)) {
       response.setHeader('Allow', 'GET, HEAD');
       send(405, 'Method not allowed');
@@ -99,6 +103,7 @@ export function createGameServer({
     xiangqi.close();
     chess.close();
     junqi.close();
+    banqi.close();
     codex.close();
   });
   return server;
