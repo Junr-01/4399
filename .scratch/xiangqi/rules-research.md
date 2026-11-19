@@ -42,7 +42,7 @@
 
 国际规则的行棋基础相同，裁决细节有差异。世界象棋联合会 2018 年规则第 3 条规定，在双方均无违规且均不愿变着的情况下，同一局面重复达四次可判和。采用自然限着的赛事为 50 回合（双方合计 100 着）无吃子，提出审核一方的将军最多计 10 着。国际规则第 20.2 款中，长杀、一将一杀、一将一捉等可不变作和，在国内 2020 版中同类循环可能要求一方变着。[《世界象棋规则》第 3 条](https://www.wxf-xiangqi.org/images/wxf-rules/2018_World_Xiangqi_Rules_Chinese_2018.pdf#page=10) · [第 8 条](https://www.wxf-xiangqi.org/images/wxf-rules/2018_World_Xiangqi_Rules_Chinese_2018.pdf#page=15) · [第 20 条](https://www.wxf-xiangqi.org/images/wxf-rules/2018_World_XiangQi_Rules_English2018.pdf) · [国内规则第 24–26 条](https://wdd66d.top/downloads/qigui/Xqqg2020.pdf#page=16)
 
-## 对 4399 后续规格的影响
+## 对 43gg 后续规格的影响
 
 - 固定 9×10 棋盘。开局若允许选择先手，先手一方执红。棋盘视角的翻转不改变红黑的前进方向。[国内规则第 1–2 条](https://wdd66d.top/downloads/qigui/Xqqg2020.pdf#page=6)
 - 人和 AI 的着法都应校验棋子的走法、路上阻挡及走后己方帅将是否安全。走完后再检查轮走方有没有合法着法，以区分将死与困毙。这是把第 2–4 条转换为电子对局判定的一种实现方式。[国内规则第 2–4 条](https://wdd66d.top/downloads/qigui/Xqqg2020.pdf#page=8)

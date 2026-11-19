@@ -162,7 +162,7 @@ export function createMatchApi(name, codex, { configure, create, snapshot, sched
     let output;
     try {
       if (request.headers.host !== host || (method !== 'GET' && request.headers.origin !== 'http://' + host)) {
-        throw new GameError(403, '请从本地 4399 页面访问。');
+        throw new GameError(403, '请从本地 43gg 页面访问。');
       }
       const matchRoute = path.slice(prefix.length).match(/^\/matches\/([\da-f-]+)$/);
       if (method === 'GET' && path === prefix + '/models') {

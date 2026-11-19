@@ -12,7 +12,7 @@ import { createBanqiApi } from './banqi.mjs';
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const identity = createHash('sha256').update(root).digest('hex').slice(0, 16);
-export const { version } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+export const { name, version } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
 const mimeTypes = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -66,7 +66,7 @@ export function createGameServer({
       return;
     }
     if (pathname === '/health') {
-      send(200, JSON.stringify({ app: '4399', id: identity, version, pid: process.pid }), 'application/json; charset=utf-8');
+      send(200, JSON.stringify({ app: name, id: identity, version, pid: process.pid }), 'application/json; charset=utf-8');
       return;
     }
     if (pathname.split('/').some((part) => part.startsWith('.')) || pathname.includes('\0') || pathname.includes('\\')) {
@@ -121,7 +121,7 @@ export async function startServer(port = configuredPort(), options) {
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
   try {
     const server = await startServer();
-    console.log(`4399 · http://127.0.0.1:${server.address().port}/`);
+    console.log(`43gg · http://127.0.0.1:${server.address().port}/`);
     const stop = () => {
       server.close();
       server.closeIdleConnections();
@@ -129,7 +129,7 @@ if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.m
     process.once('SIGINT', stop);
     process.once('SIGTERM', stop);
   } catch (error) {
-    console.error(error.code === 'EADDRINUSE' ? '4399 服务端口被占用，请先关闭旧服务，或通过 PORT 指定空闲端口。' : error.message);
+    console.error(error.code === 'EADDRINUSE' ? '43gg 服务端口被占用，请先关闭旧服务，或通过 PORT 指定空闲端口。' : error.message);
     process.exitCode = 1;
   }
 }

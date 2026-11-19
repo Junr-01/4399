@@ -10,7 +10,7 @@ const models = [{ id: 'example', name: 'Example', efforts: ['low', 'high'], defa
 const config = { side: 'black', model: 'example', effort: 'high' };
 
 async function game(t, choose) {
-  const directory = await mkdtemp(join(tmpdir(), '4399-chess-test-'));
+  const directory = await mkdtemp(join(tmpdir(), '43gg-chess-test-'));
   const chessDirectory = join(directory, 'chess');
   const server = await startServer(0, { chessDirectory, codex: {
     catalog: async () => models,
@@ -293,7 +293,7 @@ test('a paused AI checkmate retains its move and waits for the resumed turn to f
 test('match directories carry the actual side and survive closing or replacing a game', async t => {
   const { request, start, act, settled, chessDirectory } = await game(t, input => movePiece(input, 'd2', 'd4'));
   await request('/models');
-  assert.equal(await readFile(join(chessDirectory, '.4399-root'), 'utf8'), '');
+  assert.equal(await readFile(join(chessDirectory, '.43gg-root'), 'utf8'), '');
   const shared = join(chessDirectory, 'AGENTS.md');
   const instructions = await readFile(shared, 'utf8');
   for (const name of ['role.md', 'rule.md', 'tools.md']) {

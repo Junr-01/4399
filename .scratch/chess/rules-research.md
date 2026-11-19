@@ -65,9 +65,9 @@ FIDE 为正式线上竞赛另设《线上国际象棋规则》，理事会于 20
 - **何为同一局面**。同色同类棋子占据相同格子、轮走方相同，并且可行着法一致。王车易位权改变时，即使棋子都回到原格，局面也不同。吃过路兵只有在当时确实可合法执行时才影响等同性。例如吃过路兵会暴露己方王时，该吃法无效，过路目标格本身不应区分局面。依据是现行第 9.2.3 条的定义和第 3.9 条的王安全要求。[FIDE 第 3.9、9.2.3 条](https://handbook.fide.com/chapter/E012023)
 - **如何计数**。相同局面可隔着不同的走法出现，不要求连续。例如开局后双方依次走 `Nf3 Nf6 Ng1 Ng8`，再走一遍，初始局面连同两次返回共出现三次。该例两次返回时均保留原易位权，且仍轮到白走。持续将军造成局面重复时，同样适用上述重复规则。[FIDE 第 9.2、9.6.1 条](https://handbook.fide.com/chapter/E012023) · [2026 年裁判手册第 9.6 条注释](https://arbiters.fide.com/wp-content/uploads/Publications/Manual/Arbiter-Manual-2026.pdf#page=42)
 
-## 对 4399 后续规格的影响
+## 对 43gg 后续规格的影响
 
-- 4399 采用 FIDE 线上规则的自动判和。相同局面第三次出现，或双方各连续 50 着未动兵、未吃子时，由程序直接判和。[FIDE 线上规则第 5.4 条](https://handbook.fide.com/chapter/OnlineChessRegulations)
+- 43gg 采用 FIDE 线上规则的自动判和。相同局面第三次出现，或双方各连续 50 着未动兵、未吃子时，由程序直接判和。[FIDE 线上规则第 5.4 条](https://handbook.fide.com/chapter/OnlineChessRegulations)
 - FIDE 线上竞赛规则要求虚拟棋盘只接受合法着法，并允许平台提供自动升后等选项。是否提供认输、协议和棋、计时或悔棋，由产品规格确认。[FIDE 线上规则第 3–5 条](https://handbook.fide.com/chapter/OnlineChessRegulations)
 - 程序判定人和 AI 的着法及对局结果时，需要保留棋子位置、轮走方、两侧易位权、过路兵机会、无进展着数和重复局面历史。一个起点与终点可能对应四种升变着法，选择棋种也是着法的一部分。若提供悔棋，回退棋盘时一并恢复这些状态，重新评估将军与终局结果。[FIDE 第 3.7–3.9、5、9 条](https://handbook.fide.com/chapter/E012023)
 - 若首版只覆盖能够可靠判定的常见死局，规格应明确哪些局面会自动和棋。验证时可采用裁判手册的兵链互锁例，以及双马仍能将死的例子。[FIDE 第 5.2.2 条](https://handbook.fide.com/chapter/E012023) · [2026 年裁判手册第 1.5 条示例](https://arbiters.fide.com/wp-content/uploads/Publications/Manual/Arbiter-Manual-2026.pdf#page=17)

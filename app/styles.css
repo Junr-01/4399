@@ -40,10 +40,7 @@ button:focus-visible { outline: 3px solid #829d56; outline-offset: 5px; }
   margin: 0 auto;
 }
 
-.brand { display: flex; align-items: center; gap: 11px; user-select: none; }
 .brand-mark { display: block; width: 38px; height: 38px; }
-.brand-name { font-size: 24px; font-weight: 760; letter-spacing: -1px; }
-.brand-name > span { color: #8ca568; }
 
 main {
   grid-area: 2 / 1;
@@ -113,7 +110,6 @@ main {
 
 @media (max-width: 700px) {
   .site-header { padding: 0 27px; height: 87px; }
-  .brand-name { font-size: 22px; }
   .brand-mark { width: 34px; height: 34px; }
   .intro { margin: 22px 20px 24px; }
   .intro h1 { font-size: 24px; }

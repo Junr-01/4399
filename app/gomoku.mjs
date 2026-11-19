@@ -25,7 +25,7 @@ async function request(path, data) {
   });
   const body = response.headers.get('content-type')?.includes('application/json') ? await response.json() : null;
   if (!response.ok || !body) {
-    const failure = new Error(body?.error ?? '游戏服务未返回有效数据，请重启 4399 后重试。');
+    const failure = new Error(body?.error ?? '游戏服务未返回有效数据，请重启 43gg 后重试。');
     failure.status = response.status;
     throw failure;
   }

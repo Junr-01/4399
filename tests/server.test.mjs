@@ -49,7 +49,7 @@ test('HEAD has the same type as GET but no response body', async () => {
 test('health identifies the running installation for launch and stop', async () => {
   const response = await fetch(`${base}/health`);
   const health = await response.json();
-  assert.equal(health.app, '4399');
+  assert.equal(health.app, '43gg');
   assert.equal(health.id, identity);
   assert.equal(health.pid, process.pid);
 });

@@ -1,4 +1,4 @@
-# 4399 军棋翻棋 AI 对局改造
+# 43gg 军棋翻棋 AI 对局改造
 
 Category: enhancement
 Status: ready-for-agent

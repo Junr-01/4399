@@ -1,9 +1,9 @@
 {
-  "name": "4399",
+  "name": "43gg",
   "version": "0.4.0",
   "private": true,
   "type": "module",
-  "description": "4399 · 和AI玩几把",
+  "description": "43gg · 和AI玩几把",
   "engines": { "node": ">=22" },
   "scripts": {
     "dev": "node --watch scripts/server.mjs",

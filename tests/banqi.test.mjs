@@ -12,7 +12,7 @@ const reveal = (callTool, to) => callTool('play_action', { action: 'flip', to })
 const position = callTool => callTool('get_position', {});
 
 async function setup(t, move, random = () => 0.999) {
-  const directory = await mkdtemp(join(tmpdir(), '4399-banqi-test-'));
+  const directory = await mkdtemp(join(tmpdir(), '43gg-banqi-test-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const server = await startServer(0, { banqiDirectory: directory, banqiRandom: random, codex: {
     catalog: async () => models,

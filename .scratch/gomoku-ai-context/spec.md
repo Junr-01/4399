@@ -5,13 +5,13 @@ Status: ready-for-agent
 
 ## Problem Statement
 
-玩家希望和 AI 正常轮流下五子棋。当前每次轮到 AI，4399 都把完整棋谱发给 Codex，再从结构化回复读取落点。AI 需要自行还原盘面。返回的落点无效或请求异常时，玩家需要手动重试。维护者也需要把五子棋的角色和规则从代码里的提示词抽出来，按本局实际配置提供给 AI。
+玩家希望和 AI 正常轮流下五子棋。当前每次轮到 AI，43gg 都把完整棋谱发给 Codex，再从结构化回复读取落点。AI 需要自行还原盘面。返回的落点无效或请求异常时，玩家需要手动重试。维护者也需要把五子棋的角色和规则从代码里的提示词抽出来，按本局实际配置提供给 AI。
 
 ## Solution
 
-4399 为每局五子棋准备独立的 Codex 工作目录。所有对局共用由角色和固定规则组成的父级 `AGENTS.md`，每局的 `AGENTS.md` 写入棋盘尺寸和实际先手。AI 每回合使用 `get_position()` 查看最新棋盘，使用 `place_stone(row, col)` 提交落点。游戏服务校验并立即落子，等 Codex 正常结束回合后再把落子权交给玩家。
+43gg 为每局五子棋准备独立的 Codex 工作目录。所有对局共用由角色和固定规则组成的父级 `AGENTS.md`，每局的 `AGENTS.md` 写入棋盘尺寸和实际先手。AI 每回合使用 `get_position()` 查看最新棋盘，使用 `place_stone(row, col)` 提交落点。游戏服务校验并立即落子，等 Codex 正常结束回合后再把落子权交给玩家。
 
-AI 回合异常时，4399 自动重试最多三次。已经成功落下的棋子在恢复过程中保留，每个 AI 回合仍然只允许成功落一子。自动重试用尽后，玩家可以点「重试」继续恢复，也可以按现有规则悔棋。
+AI 回合异常时，43gg 自动重试最多三次。已经成功落下的棋子在恢复过程中保留，每个 AI 回合仍然只允许成功落一子。自动重试用尽后，玩家可以点「重试」继续恢复，也可以按现有规则悔棋。
 
 ## User Stories
 
@@ -88,5 +88,5 @@ AI 回合异常时，4399 自动重试最多三次。已经成功落下的棋子
 
 ## Further Notes
 
-- 工作目录使用 `~/.4399/gomoku/AGENTS.md` 和 `~/.4399/gomoku/<对局 ID>/AGENTS.md`。默认指令源是项目中已有的 [role.md](../../docs/gomoku-prompts/role.md) 和 [rule.md](../../docs/gomoku-prompts/rule.md)。[原五子棋规格](../gomoku/spec.md)记录了首版对局的交互。
+- 工作目录使用 `~/.43gg/gomoku/AGENTS.md` 和 `~/.43gg/gomoku/<对局 ID>/AGENTS.md`。默认指令源是项目中已有的 [role.md](../../docs/gomoku-prompts/role.md) 和 [rule.md](../../docs/gomoku-prompts/rule.md)。[原五子棋规格](../gomoku/spec.md)记录了首版对局的交互。
 - Codex 动态工具仍是实验接口。使用本机 GPT‑6.1 Sol 的独立测试已观察到 `get_position` 和 `place_stone` 的真实调用，也验证了 `turn/interrupt`。真实游戏的目录加载和自然结束流程留在实现时验收。

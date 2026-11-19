@@ -13,7 +13,7 @@ const answer = (callTool, action, to, from) =>
 
 async function game(t, choose, { random, catalog = async () => models } = {}) {
   const disposed = [];
-  const directory = await mkdtemp(join(tmpdir(), '4399-junqi-test-'));
+  const directory = await mkdtemp(join(tmpdir(), '43gg-junqi-test-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const server = await startServer(0, { junqiDirectory: directory, junqiRandom: random, codex: {
     catalog,

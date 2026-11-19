@@ -2,7 +2,7 @@
 
 ## 采用的版本
 
-4399 采用中央研究院资讯科学研究所网站公开的 2019 年《Rules for Chinese Dark Chess》的盘面规则，该文件是当年电算机博弈课程期末赛的指定规则。国际电脑博弈协会（ICGA）的赛事规则页面引用同系列的 2014 年版。两版的棋盘、翻棋定色、走棋、吃棋和重复裁决一致，2014 年版的无进展门槛为 30 手，2019 年版为 60 手且补充了判负的例子。选择 2019 年版的 60 手门槛。各来源有自己的办赛规则，目前核对的是这些具名版本。[中研院资讯所 2019 年版](https://homepage.iis.sinica.edu.tw/~tshsu/tcg/2019/hwks/rules.pdf) · [2019 年期末赛手册](https://homepage.iis.sinica.edu.tw/~tshsu/tcg/2019/hwks/manual.pdf) · [中研院资讯所 2014 年版](https://homepage.iis.sinica.edu.tw/~tshsu/tcg/2014/hwks/rules.pdf) · [ICGA 赛事规则入口](https://icga.org/?page_id=1074)
+43gg 采用中央研究院资讯科学研究所网站公开的 2019 年《Rules for Chinese Dark Chess》的盘面规则，该文件是当年电算机博弈课程期末赛的指定规则。国际电脑博弈协会（ICGA）的赛事规则页面引用同系列的 2014 年版。两版的棋盘、翻棋定色、走棋、吃棋和重复裁决一致，2014 年版的无进展门槛为 30 手，2019 年版为 60 手且补充了判负的例子。选择 2019 年版的 60 手门槛。各来源有自己的办赛规则，目前核对的是这些具名版本。[中研院资讯所 2019 年版](https://homepage.iis.sinica.edu.tw/~tshsu/tcg/2019/hwks/rules.pdf) · [2019 年期末赛手册](https://homepage.iis.sinica.edu.tw/~tshsu/tcg/2019/hwks/manual.pdf) · [中研院资讯所 2014 年版](https://homepage.iis.sinica.edu.tw/~tshsu/tcg/2014/hwks/rules.pdf) · [ICGA 赛事规则入口](https://icga.org/?page_id=1074)
 
 ## 盘面规则
 
@@ -15,4 +15,4 @@
 ## 同类来源的差异
 
 - 台湾大学 2025 年电算机博弈课程期末赛规定连续 30 手无吃子、无翻棋为和，并规定赛时。其对局平台用名义上的红方先翻，若翻出黑子则交换执棋颜色。课程材料确认同样使用半盘、随机暗子、四方向一格、炮架跳吃和兵卒吃将帅。这里采用中研院 2019 年版的无进展门槛及直接选先翻方式。[台大 TCG 2025 期末赛资料，第 3–5、11 页](https://www.csie.ntu.edu.tw/~tcg/2025/final/problem_file/final.pdf)
-- 2026 年名间乡全国暗棋锦标赛公告第 19 项也规定半盘 32 格、相邻棋阶吃法、兵卒吃将帅、炮隔一子吃敌明子。其赛事细则包含仅在全明子盘面可申请的 25 回合算步、长捉与裁判判罚。4399 的和棋自动依 2019 年文件和上述循环定义裁定，采用休闲人机对弈配置，不引入赛事棋钟、摸子或犯规计数。[名间乡公所赛事公告](https://www.beclass.com/default.php?file=regist&name=ShowList&rgstid=305263a69d8d7bd3878f)
+- 2026 年名间乡全国暗棋锦标赛公告第 19 项也规定半盘 32 格、相邻棋阶吃法、兵卒吃将帅、炮隔一子吃敌明子。其赛事细则包含仅在全明子盘面可申请的 25 回合算步、长捉与裁判判罚。43gg 的和棋自动依 2019 年文件和上述循环定义裁定，采用休闲人机对弈配置，不引入赛事棋钟、摸子或犯规计数。[名间乡公所赛事公告](https://www.beclass.com/default.php?file=regist&name=ShowList&rgstid=305263a69d8d7bd3878f)

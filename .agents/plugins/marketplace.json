@@ -1,12 +1,12 @@
 {
-  "name": "4399-local",
-  "interface": { "displayName": "4399" },
+  "name": "43gg-local",
+  "interface": { "displayName": "43gg" },
   "plugins": [
     {
-      "name": "4399",
+      "name": "43gg",
       "source": { "source": "local", "path": "./" },
       "policy": { "installation": "AVAILABLE", "authentication": "ON_USE" },
-      "category": "Productivity"
+      "category": "Entertainment"
     }
   ]
 }

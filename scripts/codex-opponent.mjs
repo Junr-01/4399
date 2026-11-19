@@ -58,7 +58,7 @@ function startClient(cwd) {
       if (message.method === 'item/tool/call') {
         const handler = toolHandlers.get(message.params?.threadId);
         notify(handler ? handler(message) : toolResponse(message.id, false, staleToolRequest));
-      } else notify({ id: message.id, error: { code: -32601, message: '4399 does not handle this server request.' } });
+      } else notify({ id: message.id, error: { code: -32601, message: '43gg does not handle this server request.' } });
     } else if (message.method) {
       for (const listen of listeners) listen(message);
     } else {
@@ -160,12 +160,12 @@ export function createCodexOpponent(version) {
     if (closed) throw new Error('游戏服务已关闭。');
     if (connection) return connection;
     const startup = (async () => {
-      const cwd = await mkdtemp(join(tmpdir(), '4399-codex-'));
+      const cwd = await mkdtemp(join(tmpdir(), '43gg-codex-'));
       const client = startClient(cwd);
       client.ended.addEventListener('abort', clearConnection, { once: true });
       try {
         await client.request('initialize', {
-          clientInfo: { name: '4399', version }, capabilities: { experimentalApi: true },
+          clientInfo: { name: '43gg', version }, capabilities: { experimentalApi: true },
         });
         client.notify({ method: 'initialized' });
         return client;

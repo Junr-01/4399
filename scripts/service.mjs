@@ -1,4 +1,4 @@
-import { configuredPort, identity } from './server.mjs';
+import { configuredPort, identity, name } from './server.mjs';
 import { setTimeout as delay } from 'node:timers/promises';
 
 export const url = `http://127.0.0.1:${configuredPort()}`;
@@ -14,8 +14,9 @@ export async function liveService() {
   }
   let health;
   try { health = await response.json(); } catch { /* An unrelated listener may not return JSON. */ }
-  if (!response.ok || health?.app !== '4399' || health.id !== identity || !Number.isInteger(health.pid) || health.pid <= 0) {
-    throw new Error(`${url} 已被其他服务或另一份 4399 占用，请先处理端口冲突。`);
+  const knownApp = health?.app === name || health?.app === '4399';
+  if (!response.ok || !knownApp || health.id !== identity || !Number.isInteger(health.pid) || health.pid <= 0) {
+    throw new Error(`${url} 已被其他服务或另一份 43gg 占用，请先处理端口冲突。`);
   }
   return health;
 }
@@ -28,5 +29,5 @@ export async function stopService(health) {
     const current = await liveService();
     if (!current || current.pid !== health.pid) return;
   }
-  throw new Error('4399 服务尚未退出，请稍后重试。');
+  throw new Error('43gg 服务尚未退出，请稍后重试。');
 }

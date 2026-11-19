@@ -12,7 +12,7 @@ const models = [
 const config = { size: 9, model: 'example', effort: 'high', first: 'you' };
 
 async function game(t, move) {
-  const directory = await mkdtemp(join(tmpdir(), '4399-gomoku-test-'));
+  const directory = await mkdtemp(join(tmpdir(), '43gg-gomoku-test-'));
   const gomokuDirectory = join(directory, 'gomoku');
   const codex = move && {
     catalog: async () => models,
@@ -291,7 +291,7 @@ test('shows an AI landing before the Codex turn ends and keeps player input lock
 test('uses App Server tools, completes without text, and interrupts an undone turn', {
   timeout: 5000, skip: process.platform === 'win32' && 'The fake CLI uses a POSIX executable script',
 }, async t => {
-  const directory = await mkdtemp(join(tmpdir(), '4399-codex-fixture-'));
+  const directory = await mkdtemp(join(tmpdir(), '43gg-codex-fixture-'));
   const executable = join(directory, 'codex');
   await writeFile(executable, '#!' + process.execPath + '\n' + `
     const assert = require('node:assert/strict');
@@ -308,7 +308,7 @@ test('uses App Server tools, completes without text, and interrupts an undone tu
       const reply = result => send({ id, result });
       if (method === 'initialize') {
         assert.equal(params.capabilities?.experimentalApi, true);
-        assert.ok(process.argv.some(arg => arg.includes('project_root_markers') && arg.includes('.4399-root')));
+        assert.ok(process.argv.some(arg => arg.includes('project_root_markers') && arg.includes('.43gg-root')));
         reply({});
       }
       if (method === 'account/read') reply({ requiresOpenaiAuth: false });

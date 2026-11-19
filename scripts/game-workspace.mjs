@@ -3,11 +3,11 @@ import { access, link, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'n
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-export const gameRootMarker = '.4399-root';
+export const gameRootMarker = '.43gg-root';
 
 function withTools(instructions, tools) {
-  const startMarker = '<!-- 4399:tools:start -->';
-  const endMarker = '<!-- 4399:tools:end -->';
+  const startMarker = '<!-- 43gg:tools:start -->';
+  const endMarker = '<!-- 43gg:tools:end -->';
   const section = `${startMarker}\n${tools.trimEnd()}\n${endMarker}`;
   const start = instructions.indexOf(startMarker);
   const end = instructions.indexOf(endMarker, start + startMarker.length);
@@ -18,7 +18,9 @@ function withTools(instructions, tools) {
   return instructions + gap + section + '\n';
 }
 
-export function createGameWorkspace(game, directory = join(homedir(), '.4399', game), { includeTools = false } = {}) {
+export function createGameWorkspace(game, directory, { includeTools = false } = {}) {
+  const legacyInstructions = directory === undefined ? join(homedir(), '.4399', game, 'AGENTS.md') : null;
+  directory ??= join(homedir(), '.43gg', game);
   const prompts = new URL(`../docs/${game}-prompts/`, import.meta.url);
   const readPrompt = name => readFile(new URL(name, prompts), 'utf8');
   let pending;
@@ -39,6 +41,15 @@ export function createGameWorkspace(game, directory = join(homedir(), '.4399', g
     }
 
     let instructions = existing;
+    if (instructions === undefined && legacyInstructions) {
+      try {
+        instructions = (await readFile(legacyInstructions, 'utf8'))
+          .replaceAll(/^# 4399(?= )/gm, '# 43gg')
+          .replaceAll('<!-- 4399:tools:', '<!-- 43gg:tools:');
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+      }
+    }
     if (instructions === undefined) {
       const [role, rule] = await Promise.all(['role.md', 'rule.md'].map(readPrompt));
       instructions = `${role.trimEnd()}\n\n${rule.trimEnd()}\n`;

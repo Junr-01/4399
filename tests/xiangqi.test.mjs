@@ -13,7 +13,7 @@ const config = { side: 'red', model: 'example', effort: 'high' };
 const at = square => (10 - Number(square.slice(1))) * 9 + square.charCodeAt(0) - 97;
 
 async function game(t, choose) {
-  const directory = await mkdtemp(join(tmpdir(), '4399-xiangqi-test-'));
+  const directory = await mkdtemp(join(tmpdir(), '43gg-xiangqi-test-'));
   const xiangqiDirectory = join(directory, 'xiangqi');
   const codex = choose && {
     catalog: async () => models,
@@ -338,7 +338,7 @@ test('adds shared tool instructions once, preserves local text, and records reso
   const shared = join(xiangqiDirectory, 'AGENTS.md');
   const toolGuide = (await readFile(new URL('../docs/xiangqi-prompts/tools.md', import.meta.url), 'utf8')).trimEnd();
   const defaults = await readFile(shared, 'utf8');
-  assert.match(defaults, /中国象棋职业选手[\s\S]*4399 中国象棋规则[\s\S]*# 对弈工具/);
+  assert.match(defaults, /中国象棋职业选手[\s\S]*43gg 中国象棋规则[\s\S]*# 对弈工具/);
   assert(defaults.includes(toolGuide));
   await writeFile(shared, '本地指令\n');
   const red = await request('/matches', config, 201);
@@ -489,7 +489,7 @@ test('a player checkmate ends the game without scheduling an AI reply', async t 
 test('reuses a healthy App Server thread and rebuilds failed threads in the same workspace', {
   timeout: 5000, skip: process.platform === 'win32' && 'The fake CLI uses a POSIX executable script',
 }, async t => {
-  const directory = await mkdtemp(join(tmpdir(), '4399-xiangqi-codex-fixture-'));
+  const directory = await mkdtemp(join(tmpdir(), '43gg-xiangqi-codex-fixture-'));
   const executable = join(directory, 'codex');
   const trace = join(directory, 'turns.jsonl');
   t.after(() => rm(directory, { recursive: true, force: true }));
