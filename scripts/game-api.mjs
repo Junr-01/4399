@@ -18,14 +18,7 @@ export function cancelTurn(match) {
   current?.abort();
 }
 
-export function runTurn(match, position, apply, failureMessage) {
-  runTurnTask(match, async (signal) => {
-    const move = await match.opponent.move(position, signal);
-    if (!signal.aborted) apply(move);
-  }, failureMessage);
-}
-
-export function runTurnTask(match, play, failureMessage) {
+function runTurnTask(match, play, failureMessage) {
   const turn = new AbortController();
   match.turn = turn;
   match.error = null;

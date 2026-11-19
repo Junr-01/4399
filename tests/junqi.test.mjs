@@ -1,21 +1,25 @@
 import assert from 'node:assert/strict';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import { startServer } from '../scripts/server.mjs';
 
 const models = [{ id: 'example', name: 'Example', efforts: ['low', 'high'], defaultEffort: 'low', isDefault: true }];
 const config = { first: 'human', model: 'example', effort: 'high' };
-const answer = (position, action, to, from) => ({
-  move: position.legal.find(entry => entry.action === action && entry.to === to && entry.from === from).id,
-});
+const answer = (callTool, action, to, from) =>
+  callTool('play_action', { action, to, ...(from === undefined ? {} : { from }) });
 
 async function game(t, choose, { random, catalog = async () => models } = {}) {
   const disposed = [];
-  const server = await startServer(0, { junqiRandom: random, codex: {
+  const directory = await mkdtemp(join(tmpdir(), '4399-junqi-test-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const server = await startServer(0, { junqiDirectory: directory, junqiRandom: random, codex: {
     catalog,
-    openMatch(options, name) {
+    openMatch(options, name, workspace) {
       return {
-        move: (position, signal) => choose(position, signal, options, name),
+        move: (input, signal) => choose(input, signal, options, name, workspace),
         dispose: () => disposed.push(name),
       };
     },
@@ -43,7 +47,7 @@ async function game(t, choose, { random, catalog = async () => models } = {}) {
   }
 
   return {
-    request, read, settled, disposed,
+    request, read, settled, disposed, directory,
     reserve: () => request('/reservations', {}, 201).then(({ id }) => id),
     start: async (options = config) => {
       const { id } = await request('/reservations', {}, 201);
@@ -54,28 +58,53 @@ async function game(t, choose, { random, catalog = async () => models } = {}) {
   };
 }
 
-test('the API validates settings and sends the selected model a numbered, public opening', async t => {
+test('the opening uses a per-match workspace and tools, with exactly one action before handoff', async t => {
   const seen = Promise.withResolvers();
-  const { request, start, settled, act, remove, disposed } = await game(t, (position, _, options, name) => {
-    seen.resolve({ position, options, name });
-    return answer(position, 'flip', 0);
-  });
+  const finish = Promise.withResolvers();
+  const { request, start, read, settled, act, remove, disposed, directory } = await game(t, async ({ text, callTool }, _, options, name, workspace) => {
+    seen.resolve({ text, options, name, workspace, callTool });
+    await finish.promise;
+  }, { random: () => 0.1 });
+  t.after(() => finish.resolve());
   assert.deepEqual((await request('/models')).models, models);
   await request('/matches', { ...config, first: 'red' }, 400);
   await request('/matches', { ...config, effort: 'max' }, 400);
   const opening = await start({ ...config, first: 'ai' });
-  assert.equal(opening.thinking, true);
-  assert.deepEqual(opening.legal, []);
-  assert.equal(opening.board.filter(cell => cell === 'dark').length, 50);
-
-  const { position, options, name } = await seen.promise;
+  const { options, name, text, workspace, callTool } = await Promise.race([
+    seen.promise, delay(1000, undefined, { ref: false }).then(() => assert.fail('AI did not expose its tools')),
+  ]);
+  const position = callTool('get_position', {});
+  assert.throws(() => callTool('get_position', null), /无需参数/);
+  assert.throws(() => callTool('play_action', { action: 'flip', to: 60 }), /0 到 59/);
+  assert.throws(() => callTool('play_action', { action: 'flip', from: 1, to: 0 }), /只需/);
+  assert.throws(() => callTool('play_action', { action: 'move', from: 0, to: 1 }), /翻棋/);
+  assert.throws(() => callTool('play_action', { action: 'flip', to: 11 }), /暗子/);
+  assert.equal(answer(callTool, 'flip', 0), '行动成功。');
+  assert.throws(() => answer(callTool, 'flip', 1), /已行动/);
+  const committed = callTool('get_position', {});
   assert.equal(name, 'junqi');
+  assert.equal(text, '棋局开始');
+  assert.equal(workspace.cwd, join(directory, opening.id));
+  assert.deepEqual(workspace.dynamicTools.map(tool => tool.name), ['get_position', 'play_action']);
+  assert.match(await readFile(join(directory, 'AGENTS.md'), 'utf8'), /# 角色[\s\S]+# 军棋规则[\s\S]+# 对弈工具/);
+  assert.match(await readFile(join(workspace.cwd, 'AGENTS.md'), 'utf8'), /你先翻棋/);
   assert.deepEqual(options, { ...config, first: 'ai', modelName: 'Example' });
-  assert.deepEqual(position.board, opening.board);
-  assert.deepEqual(position.legal[0], { action: 'flip', to: 0, id: 0 });
+  assert.equal(position.board.filter(cell => cell === 'dark').length, 50);
+  assert.deepEqual(position.legal[0], { action: 'flip', to: 0 });
   assert.equal(position.legal.length, 50);
-  assert.ok(position.legal.every(({ action, to, id }) =>
-    action === 'flip' && Number.isInteger(id) && position.board[to] === 'dark'));
+  assert.ok(position.legal.every(({ action, to }) => action === 'flip' && position.board[to] === 'dark'));
+  assert.equal(position.moveCommitted, false);
+  assert.equal(committed.moveCommitted, true);
+  assert.deepEqual(committed.legal, []);
+
+  const pending = await read(opening.id);
+  assert.equal(pending.thinking, true);
+  assert.equal(pending.turn, 'ai');
+  assert.deepEqual(pending.legal, []);
+  assert.deepEqual(pending.board, committed.board);
+  assert.deepEqual(pending.last, committed.last);
+  await act(pending, 'flip', { to: 1 }, 409);
+  finish.resolve();
   const after = await settled(opening.id);
   assert.equal(after.turn, 'human');
   assert.deepEqual(after.last.piece, after.board[0]);
@@ -86,14 +115,15 @@ test('the API validates settings and sends the selected model a numbered, public
   await remove(opening.id);
   assert.deepEqual(disposed, ['junqi']);
   await request('/matches/' + opening.id, undefined, 404);
+  assert.match(await readFile(join(workspace.cwd, 'AGENTS.md'), 'utf8'), /你先翻棋/);
 });
 
 test('different dark layouts are identical to the browser and AI before they are revealed', async t => {
   const observations = [];
   let value = 0.1;
-  const { start, settled } = await game(t, position => {
-    observations.push(position);
-    return answer(position, 'flip', 0);
+  const { start, settled } = await game(t, ({ callTool }) => {
+    observations.push(callTool('get_position', {}));
+    answer(callTool, 'flip', 0);
   }, { random: () => value });
   const first = await start({ ...config, first: 'ai' });
   const firstReply = await settled(first.id);
@@ -121,15 +151,19 @@ async function assignSides(api) {
   return assigned;
 }
 
-function openingReply(position) {
-  return position.recentMoves.length === 1 ? answer(position, 'flip', 15) : answer(position, 'move', 21, 15);
+function openingReply(callTool) {
+  const { sides } = callTool('get_position', {});
+  return sides ? answer(callTool, 'move', 21, 15) : answer(callTool, 'flip', 15);
 }
 
-test('undo uses the actual AI reply when a move or flip wins the race', async t => {
+test('undo can follow a committed AI move but cannot reverse a concurrent reveal', async t => {
   let replyWithFlip = false;
-  const api = await game(t, position => {
-    if (position.recentMoves.length < 5) return openingReply(position);
-    return replyWithFlip ? answer(position, 'flip', 1) : answer(position, 'move', 17, 21);
+  const messages = [];
+  const api = await game(t, ({ text, callTool }) => {
+    messages.push(text);
+    const { last } = callTool('get_position', {});
+    if (last.action === 'flip') return openingReply(callTool);
+    return replyWithFlip ? answer(callTool, 'flip', 1) : answer(callTool, 'move', 17, 21);
   }, { random: () => 0.5 });
 
   const assigned = await assignSides(api);
@@ -147,26 +181,22 @@ test('undo uses the actual AI reply when a move or flip wins the race', async t 
   const refused = await api.act(next, 'undo', {}, 409);
   assert.deepEqual(refused.snapshot, revealed);
   assert.deepEqual(refused.snapshot.board[1], { color: 'red', type: 'flag' });
+  assert.deepEqual(messages, ['我已落子', '我已落子', '我已落子', '我悔棋了，已经重新落子']);
 });
 
-test('pending undo and pause cancel replies; resume, retry, replacement and close use the current state', async t => {
-  const started = [Promise.withResolvers(), Promise.withResolvers(), Promise.withResolvers()];
-  const late = started.map(() => Promise.withResolvers());
-  const positions = [];
-  let attempts = 0;
+test('undo and pause invalidate old tools while resuming and replacing use current state', async t => {
+  const started = Array.from({ length: 3 }, () => Promise.withResolvers());
+  const hold = started.map(() => Promise.withResolvers());
+  let attempt = 0;
   let modelAvailable = false;
-  const api = await game(t, (position, signal) => {
-    if (position.recentMoves.length < 5) return openingReply(position);
-    const attempt = attempts++;
-    positions.push(position);
-    if (attempt < 2) {
-      started[attempt].resolve(signal);
-      return late[attempt].promise;
-    }
-    if (attempt === 2) throw new Error('timed out');
-    if (attempt === 3) return { move: -1 };
-    started[2].resolve(signal);
-    return late[2].promise;
+  const positions = [];
+  const api = await game(t, async ({ callTool }, signal) => {
+    const state = callTool('get_position', {});
+    if (state.last.action === 'flip') return openingReply(callTool);
+    const index = attempt++;
+    positions.push(state);
+    started[index].resolve({ callTool, signal });
+    await hold[index].promise;
   }, { random: () => 0.5, catalog: async () => {
     if (!modelAvailable) throw new Error('unavailable');
     return models;
@@ -178,42 +208,79 @@ test('pending undo and pause cancel replies; resume, retry, replacement and clos
   const pending = await api.act(assigned, 'move', { from: 6, to: 11 });
   const first = await started[0].promise;
   const undone = await api.act(pending, 'undo');
-  assert.equal(first.aborted, true);
-  late[0].resolve({ move: 0 });
+  assert.equal(first.signal.aborted, true);
+  assert.throws(() => answer(first.callTool, 'flip', 1), /失效/);
+  hold[0].resolve();
   assert.deepEqual(await api.read(assigned.id), undone);
 
   const another = await api.act(undone, 'move', { from: 6, to: 11 });
   const second = await started[1].promise;
   const paused = await api.act(another, 'pause');
-  assert.equal(second.aborted, true);
+  assert.equal(second.signal.aborted, true);
   assert.equal(paused.paused, true);
   assert.equal(paused.thinking, false);
-  late[1].resolve({ move: 0 });
-  await api.act(paused, 'resume');
+  assert.throws(() => answer(second.callTool, 'flip', 1), /失效/);
+  hold[1].resolve();
 
-  const failed = await api.settled(assigned.id);
-  assert.match(failed.error, /失败/);
-  assert.deepEqual(failed.board, paused.board);
-  await api.act(failed, 'retry');
-  const invalid = await api.settled(assigned.id);
-  assert.match(invalid.error, /无效行动/);
-  assert.deepEqual(positions[2], positions[3]);
-  const retrying = await api.act(invalid, 'retry');
+  const resumed = await api.act(paused, 'resume');
   const third = await started[2].promise;
-  await api.act(retrying, 'pause');
+  assert.deepEqual(positions[1], positions[2]);
+  await api.act(resumed, 'pause');
   const replacement = await api.start({ ...config, effort: 'low', replace: assigned.id });
-  assert.equal(third.aborted, true);
+  assert.equal(third.signal.aborted, true);
+  assert.throws(() => answer(third.callTool, 'flip', 1), /失效/);
   assert.deepEqual(api.disposed, ['junqi']);
   assert.notEqual(replacement.id, assigned.id);
   assert.equal(replacement.board.filter(cell => cell === 'dark').length, 50);
   assert.equal(replacement.config.effort, 'low');
-  late[2].resolve({ move: 0 });
+  hold[2].resolve();
   await api.request('/matches/' + assigned.id, undefined, 404);
   assert.deepEqual(await api.read(replacement.id), replacement);
   await api.remove(replacement.id);
   assert.deepEqual(api.disposed, ['junqi', 'junqi']);
 });
 
+test('three automatic retries keep a successful reveal through errors and a later manual retry', async t => {
+  const attempts = [];
+  const revived = Promise.withResolvers();
+  const api = await game(t, async ({ callTool, text }) => {
+    const position = callTool('get_position', {});
+    attempts.push({ position, text, callTool });
+    switch (attempts.length) {
+      case 1:
+        return; // A turn that ends without acting must be retried.
+      case 2:
+        answer(callTool, 'flip', 0);
+        break;
+      case 5:
+        await revived.promise;
+        return;
+    }
+    throw new Error('Codex unavailable');
+  }, { random: () => 0.5 });
+
+  const opening = await api.start({ ...config, first: 'ai' });
+  const failed = await api.settled(opening.id);
+  assert.match(failed.error, /重试/);
+  assert.equal(failed.turn, 'ai');
+  assert.deepEqual(failed.legal, []);
+  assert.equal(failed.ply, 1);
+  assert.deepEqual(attempts.map(({ position }) => position.moveCommitted), [false, false, true, true]);
+  assert.equal(attempts[0].text, '棋局开始');
+  assert.match(attempts[1].text, /翻棋或走棋/);
+  assert.match(attempts[2].text, /已经成功行动/);
+  assert.throws(() => answer(attempts[0].callTool, 'flip', 1), /失效/);
+  await api.act(failed, 'flip', { to: 1 }, 409);
+  const retrying = await api.act(failed, 'retry');
+  assert.equal(retrying.thinking, true);
+  revived.resolve();
+  const finished = await api.settled(opening.id);
+  assert.equal(finished.turn, 'human');
+  assert.equal(finished.error, null);
+  assert.equal(finished.ply, 1);
+  assert.deepEqual(finished.board, failed.board);
+  assert.deepEqual(attempts[4].position, attempts[3].position);
+});
 
 test('closing a page during a pending opening prevents the AI session from starting', async t => {
   const loadingCatalog = Promise.withResolvers();

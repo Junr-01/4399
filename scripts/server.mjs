@@ -30,11 +30,13 @@ export function configuredPort() {
   return Number(value);
 }
 
-export function createGameServer({ codex = createCodexOpponent(version), gomokuDirectory, xiangqiDirectory, chessDirectory, junqiRandom } = {}) {
+export function createGameServer({
+  codex = createCodexOpponent(version), gomokuDirectory, xiangqiDirectory, chessDirectory, junqiDirectory, junqiRandom,
+} = {}) {
   const gomoku = createGomokuApi(codex, gomokuDirectory);
   const xiangqi = createXiangqiApi(codex, xiangqiDirectory);
   const chess = createChessApi(codex, chessDirectory);
-  const junqi = createJunqiApi(codex, junqiRandom);
+  const junqi = createJunqiApi(codex, junqiDirectory, junqiRandom);
   const server = createServer(async (request, response) => {
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('Cache-Control', 'no-cache');

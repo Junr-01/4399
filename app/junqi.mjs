@@ -84,6 +84,7 @@ function watchTurn() {
   const epoch = requestEpoch;
   const id = match.id;
   poll = setTimeout(async () => {
+    const revision = match.revision;
     try {
       const updated = await request('/matches/' + id);
       if (epoch !== requestEpoch) return;
@@ -92,7 +93,12 @@ function watchTurn() {
       if (epoch !== requestEpoch) return;
       showError(failure);
     }
-    if (!match?.thinking || error) render();
+    if (!match?.thinking || match.revision !== revision || error) {
+      const action = document.activeElement?.closest('.game-toolbar button')?.dataset.action;
+      const status = document.activeElement?.matches('.match-status');
+      const fallback = '.match-status, .junqi-heading h1';
+      render(action ? `.game-toolbar button[data-action="${action}"]:enabled, ${fallback}` : status ? fallback : undefined);
+    }
     watchTurn();
   }, 400);
 }
@@ -191,11 +197,12 @@ function setupView() {
 function player(who) {
   const color = match.sides?.[who];
   const mark = `<span class="player-mark ${color ?? 'unassigned'}" aria-hidden="true"></span>`;
-  return matchPlayer(who === 'human' ? '你' : 'AI', colorNames[color] ?? '待定阵营', mark, !match.result && match.turn === who);
+  const side = color ? `${colorNames[color]} · 余雷 ${match.mines[color]}` : '待定阵营';
+  return matchPlayer(who === 'human' ? '你' : 'AI', side, mark, !match.result && match.turn === who);
 }
 
 function turnStatus() {
-  if (error || match.error) return '对局暂未更新';
+  if (error) return '对局暂未更新';
   if (match.turn === 'ai') return match.thinking ? 'AI 正在思考' : '轮到 AI';
   if (!match.sides) return '轮到你翻棋';
   return selected === undefined ? '轮到你行动' : '选择落点';
