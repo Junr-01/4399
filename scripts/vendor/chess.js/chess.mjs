@@ -5,60 +5,60 @@
 
 
   function rootNode(comment) {
-  	return comment !== null ? { comment, variations: [] } : { variations: []}
+    return comment !== null ? { comment, variations: [] } : { variations: []}
   }
 
   function node(move, suffix, nag, comment, variations) {
-  	const node = { move, variations };
+    const node = { move, variations };
 
     if (suffix) {
-    	node.suffix = suffix;
+      node.suffix = suffix;
     }
 
     if (nag) {
-    	node.nag = nag;
+      node.nag = nag;
     }
 
     if (comment !== null) {
-    	node.comment = comment;
+      node.comment = comment;
     }
 
     return node
   }
 
   function lineToTree(...nodes) {
-  	const [root, ...rest] = nodes;
+    const [root, ...rest] = nodes;
 
     let parent = root;
 
     for (const child of rest) {
-    	if (child !== null) {
-        	parent.variations = [child, ...child.variations];
-            child.variations = [];
-            parent = child;
-        }
+      if (child !== null) {
+        parent.variations = [child, ...child.variations];
+        child.variations = [];
+        parent = child;
+      }
     }
 
-  	return root
+    return root
   }
 
   function pgn(headers, game) {
-  	if (game.marker && game.marker.comment) {
-    	let node = game.root;
-        while (true) {
-        	const next = node.variations[0];
-            if (!next) {
-            	node.comment = game.marker.comment;
-            	break
-            }
-            node = next;
+    if (game.marker && game.marker.comment) {
+      let node = game.root;
+      while (true) {
+        const next = node.variations[0];
+        if (!next) {
+          node.comment = game.marker.comment;
+          break
         }
+        node = next;
+      }
     }
 
-  	return {
-    	headers,
-        root: game.root,
-        result: (game.marker && game.marker.result) ?? undefined
+    return {
+      headers,
+      root: game.root,
+      result: (game.marker && game.marker.result) ?? undefined
     }
   }
 
