@@ -66,7 +66,6 @@ main {
   border-radius: 28px;
   overflow: hidden;
   padding: 0;
-  text-align: left;
   transform: translateX(calc(-50% + var(--offset) * (100% + 26px))) scale(.92);
   opacity: .5;
   transition: transform .45s cubic-bezier(.2, .7, .2, 1), opacity .4s, box-shadow .4s;
@@ -84,13 +83,7 @@ main {
 
 /* A card wrapping around the back of the carousel should not cross its center. */
 .game-card.is-repositioning { transition: none; }
-.cover { width: 100%; height: 100%; position: relative; background: var(--cover-bg); color: var(--cover-ink); overflow: hidden; }
-.cover-title { position: absolute; z-index: 1; left: 8%; top: 7.5%; }
-.cover-title h2 { font-size: clamp(19px, 3.5vw, 30px); margin: 0 0 7px; font-weight: 650; letter-spacing: 2px; }
-.cover-title span { font-size: 9px; letter-spacing: 2.8px; opacity: .48; font-weight: 600; }
-.cover-art { position: absolute; inset: 18% 0 0; width: 100%; height: 82%; object-fit: contain; pointer-events: none; }
-.cover-bottom { position: absolute; left: 8%; right: 8%; bottom: 6%; display: flex; justify-content: space-between; font-size: 9px; letter-spacing: 1px; opacity: .55; align-items: center; }
-.cover-bottom em { font-style: normal; border: 1px solid currentColor; border-radius: 50px; padding: 4px 8px; font-size: 8px; }
+.game-card img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
 .navigator { display: flex; align-items: center; justify-content: center; gap: 23px; margin: 26px 0 0; }
 .circle { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid #e0e5d6; border-radius: 50%; background: #ffffff66; transition: background .2s; }
 .circle:hover { background: #e9efdf; }
@@ -117,7 +110,6 @@ main {
   .game-card { border-radius: 23px; transform: translateX(calc(-50% + var(--offset) * (100% + 17px))) scale(.91); }
   .game-card.is-selected { transform: translateX(-50%) scale(1); }
   .navigator { margin-top: 24px; gap: 20px; }
-  .cover-title span { font-size: 8px; letter-spacing: 2px; }
 }
 
 /* Fit the approved layout into shorter browser panels without covering the header. */

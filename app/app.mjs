@@ -13,15 +13,11 @@ function createCard(game, index) {
   card.type = 'button';
   card.className = 'game-card';
   card.dataset.index = index;
-  card.style.setProperty('--cover-bg', game.background);
-  card.style.setProperty('--cover-ink', game.ink);
-  // All displayed markup comes from the bundled game catalogue.
-  card.innerHTML = `
-    <div class="cover">
-      <div class="cover-title"><h2>${game.name}</h2><span>${game.englishName}</span></div>
-      <img class="cover-art" src="/assets/covers/${game.cover ?? game.id + '.svg'}" alt="" draggable="false">
-      <div class="cover-bottom"><span>PLAY A LITTLE</span><em>${game.category}</em></div>
-    </div>`;
+  const cover = document.createElement('img');
+  cover.src = `/assets/covers/${game.id}.png`;
+  cover.alt = `${game.name} · ${game.englishName}`;
+  cover.draggable = false;
+  card.append(cover);
   return card;
 }
 

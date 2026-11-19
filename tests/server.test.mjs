@@ -25,17 +25,13 @@ test('serves the homepage, JavaScript and every cover with browser MIME types', 
     assert.equal(response.status, 200);
     assert.match(response.headers.get('content-type'), /javascript/);
   }
-  for (const { id, cover = id + '.svg' } of games) {
-    const response = await fetch(`${base}/assets/covers/${cover}`);
+  for (const { id } of games) {
+    const response = await fetch(`${base}/assets/covers/${id}.png`);
     assert.equal(response.status, 200);
-    if (cover.endsWith('.png')) {
-      assert.equal(response.headers.get('content-type'), 'image/png');
-      const bytes = Buffer.from(await response.arrayBuffer());
-      assert.equal(bytes.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
-    } else {
-      assert.equal(response.headers.get('content-type'), 'image/svg+xml');
-      assert.match(await response.text(), /xmlns="http:\/\/www.w3.org\/2000\/svg"/);
-    }
+    assert.equal(response.headers.get('content-type'), 'image/png');
+    const bytes = Buffer.from(await response.arrayBuffer());
+    assert.equal(bytes.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
+    assert.equal(bytes.readUInt32BE(16), bytes.readUInt32BE(20), `${id} cover should be square`);
   }
 });
 
