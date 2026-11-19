@@ -1,3 +1,5 @@
+import { Chess } from './vendor/chess.js/chess.mjs';
+
 // A sufficient test for a locked pawn position with only kings, bishops and pawns.
 // Overestimate where the mobile pieces can go with the pawns fixed. If neither
 // side can ever give check or change the pawn structure, neither can mate.
@@ -24,7 +26,7 @@ function reach(start, directions, blocked) {
   return squares;
 }
 
-export function isLockedPawnPosition(board, enPassant) {
+function isLockedPawnPosition(board, enPassant) {
   const pawns = new Map();
   const kings = { w: [], b: [] };
   const bishops = { w: [], b: [] };
@@ -72,4 +74,22 @@ export function isLockedPawnPosition(board, enPassant) {
     }
   }
   return true;
+}
+
+function hasDeadStructure(chess, board, fen, check) {
+  return chess.isInsufficientMaterial() || (!check && isLockedPawnPosition(board, fen.split(' ')[3]));
+}
+
+export function isDeadPosition(chess, board, fen, check, legal) {
+  if (hasDeadStructure(chess, board, fen, check)) return true;
+
+  // A position can be dead before an unavoidable capture or stalemate. Check
+  // one ply, stopping as soon as a reply might still lead to mate. Work on
+  // fresh positions so the proof cannot alter game history.
+  return legal.every(({ after }) => {
+    const reply = new Chess(after);
+    const inCheck = reply.isCheck();
+    return hasDeadStructure(reply, reply.board().flat(), after, inCheck)
+      || (!inCheck && reply.isStalemate());
+  });
 }

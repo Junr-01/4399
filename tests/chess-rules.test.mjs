@@ -79,6 +79,36 @@ test('a capture giving check can still leave a dead position', () => {
   assert.deepEqual(game.snapshot().result, { winner: null, reason: 'dead-position' });
 });
 
+test('declares a dead position before every legal response would leave dead material', () => {
+  // Black can take the queen with either the king or the knight, and a lone
+  // knight against a bare king can never mate. The draw takes effect on Qa8+.
+  const fen = '8/k7/1n6/1K1Q4/8/8/8/8 w - - 0 1';
+  const game = createChess(fen);
+  assert.equal(game.play(move('d5', 'a8')), true);
+  assert.deepEqual(game.snapshot().result, { winner: null, reason: 'dead-position' });
+  assert.deepEqual(game.snapshot().legal, []);
+  game.undoTo(0);
+  assert.equal(game.snapshot().fen, fen);
+  assert.equal(game.snapshot().result, null);
+
+  const live = createChess('Q7/k7/8/8/1K6/8/8/8 b - - 0 1');
+  assert.equal(live.snapshot().result, null);
+  assert.equal(live.play(move('a7', 'b6')), true);
+});
+
+test('declares a dead position when every legal response would stalemate', () => {
+  // From https://lichess.org/OsctSrhU#117. After g4+, both Kg6 and Kh6
+  // would leave White without a legal move and with its king safe.
+  const game = createChess('8/8/8/3p2pk/5p2/5PPK/5q2/8 w - - 1 59');
+  assert.equal(game.play(move('g3', 'g4')), true);
+  assert.deepEqual(game.snapshot().result, { winner: null, reason: 'dead-position' });
+
+  // Black is free to move throughout this position, but none of its legal
+  // moves lets the white king out of the corner or puts it in check.
+  const manyReplies = createChess('q7/2ppp2p/1r5P/5r2/p5p1/1bpnbn2/b1k5/K7 b - - 0 1');
+  assert.deepEqual(manyReplies.snapshot().result, { winner: null, reason: 'dead-position' });
+});
+
 test('includes castling rights in repetition and restores them when undoing a castle', () => {
   const fen = '4k1n1/8/8/8/8/8/8/4K2R w K - 0 1';
   const game = createChess(fen);

@@ -74,6 +74,7 @@ function watchTurn() {
   const epoch = requestEpoch;
   const id = match.id;
   poll = setTimeout(async () => {
+    const revision = match.revision;
     try {
       const updated = await request('/matches/' + id);
       if (epoch !== requestEpoch) return;
@@ -82,7 +83,12 @@ function watchTurn() {
       if (epoch !== requestEpoch) return;
       showError(failure);
     }
-    if (!match?.thinking || error) render();
+    if (!match?.thinking || match.revision !== revision || error) {
+      const active = document.activeElement;
+      const action = active?.closest('.game-toolbar button')?.dataset.action;
+      const status = active?.matches('.match-status') ? '.match-status' : undefined;
+      render(action ? `.game-toolbar button[data-action="${action}"]` : status);
+    }
     watchTurn();
   }, 400);
 }
@@ -118,7 +124,7 @@ function board(preview = false) {
   const flipped = !preview && match?.humanSide === 'black';
   const cells = (preview ? match?.board ?? previewBoard : match.board);
   const coordinates = flipped ? squares.slice().reverse() : squares;
-  const legal = preview || busy ? [] : match.legal;
+  const legal = preview || busy || error ? [] : match.legal;
   const targets = new Set(legal.filter(move => move.from === selected).map(move => move.to));
   const origins = new Set(legal.map(move => move.from));
   const selectedPiece = cells[squares.indexOf(selected)]?.toLowerCase();
@@ -178,10 +184,10 @@ function setupView() {
 }
 
 function playView(result) {
-  const { humanSide, side, check, thinking } = match;
+  const { humanSide, side, check, aiTurn, thinking } = match;
   const aiSide = opposite(humanSide);
-  const humanTurn = humanSide === side;
-  const turn = error || match.error ? '对局暂未更新' : humanTurn ? '轮到你走棋' : thinking ? 'AI 正在思考' : '轮到 AI';
+  const humanTurn = !aiTurn && humanSide === side;
+  const turn = error ? '对局暂未更新' : thinking ? 'AI 正在思考' : humanTurn ? '轮到你走棋' : '轮到 AI';
   return matchLayout({
     opponent: matchPlayer('AI', colors[aiSide], marker(aiSide), !result && !humanTurn),
     player: matchPlayer('你', colors[humanSide], marker(humanSide), !result && humanTurn),

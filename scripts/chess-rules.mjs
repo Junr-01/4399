@@ -1,6 +1,6 @@
 // chess.js 1.4.0, BSD-2-Clause. The vendored runtime keeps plugin launch self-contained.
 import { Chess } from './vendor/chess.js/chess.mjs';
-import { isLockedPawnPosition } from './chess-dead-position.mjs';
+import { isDeadPosition } from './chess-dead-position.mjs';
 
 const colors = { w: 'white', b: 'black' };
 const otherColor = side => side === 'white' ? 'black' : 'white';
@@ -17,11 +17,11 @@ export function createChess(fen) {
   const moves = [];
   const positions = new Map([[positionKey(chess.fen()), 1]]);
 
-  function outcome(side, check, hasMoves, fen, board) {
-    if (!hasMoves) return check
+  function outcome(side, check, legal, fen, board) {
+    if (!legal.length) return check
       ? { winner: otherColor(side), reason: 'checkmate' }
       : { winner: null, reason: 'stalemate' };
-    if (chess.isInsufficientMaterial() || (!check && isLockedPawnPosition(board, fen.split(' ')[3]))) {
+    if (isDeadPosition(chess, board, fen, check, legal)) {
       return { winner: null, reason: 'dead-position' };
     }
     if (positions.get(positionKey(fen)) >= 3) return { winner: null, reason: 'repetition' };
@@ -32,13 +32,13 @@ export function createChess(fen) {
   function snapshot() {
     const side = colors[chess.turn()];
     const check = chess.isCheck();
-    const legal = chess.moves({ verbose: true }).map(coordinates);
+    const legal = chess.moves({ verbose: true });
     const fen = chess.fen();
     const board = chess.board().flat();
-    const result = outcome(side, check, legal.length > 0, fen, board);
+    const result = outcome(side, check, legal, fen, board);
     return {
       board: board.map(piece => !piece ? null : piece.color === 'w' ? piece.type.toUpperCase() : piece.type),
-      side, check, fen, legal: result ? [] : legal, result, moves: moves.slice(),
+      side, check, fen, legal: result ? [] : legal.map(coordinates), result, moves: moves.slice(),
     };
   }
 
