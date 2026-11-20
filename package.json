@@ -4,12 +4,19 @@
   "private": true,
   "type": "module",
   "description": "43gg · 和AI玩几把",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "node --watch scripts/server.mjs",
     "start": "node scripts/server.mjs",
     "launch": "node scripts/launch.mjs",
     "stop": "node scripts/stop.mjs",
-    "test": "node --test"
+    "test": "node --test",
+    "lint": "eslint app scripts shared tests"
+  },
+  "devDependencies": {
+    "eslint": "10.15.0",
+    "globals": "17.14.0"
   }
 }
