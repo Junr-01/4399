@@ -86,7 +86,7 @@ function setupView() {
   const { models, match, busy, error, actionError } = session.state;
   const model = models.find(item => item.id === draft.model);
   const note = draft.playerCount === 5 ? '5 人局使用入门布局，你对面的营地开局留空。' : '你先走，其余席位由 AI 执棋。';
-  return `<section class="checkers-setup">
+  return `<section class="checkers-setup">${boardView(true)}
     <form class="checkers-form" aria-labelledby="setup-title">
       <h2 id="setup-title">对局设置</h2>
       <fieldset ${disabled(busy)}><legend>玩家人数</legend><div class="count-options">${playerCounts.map(count =>
@@ -100,7 +100,7 @@ function setupView() {
       ${match ? `<button class="checkers-return" type="button" data-action="resume" ${disabled(busy)}>返回对局</button>` : ''}
       ${error || actionError ? `<p class="checkers-error" role="alert">${escapeHtml(error || actionError)}</p>
         <button class="match-button" type="button" data-action="catalog">${model ? '刷新模型列表' : '重试'}</button>` : ''}
-    </form>${boardView(true)}
+    </form>
   </section>`;
 }
 

@@ -11,21 +11,28 @@
 
 #chinese-checkers { display: block; padding: 18px 24px 28px; }
 .checkers-shell { width: 100%; margin-inline: auto; }
-.checkers-config { max-width: 830px; }
+.checkers-config { max-width: 520px; }
 .checkers-playing { max-width: min(570px, max(350px, calc((100svh - 164px) / 1.1))); }
 .checkers-config h1 { margin: 2px 0 20px; font-size: clamp(29px, 5.2vw, 39px); font-weight: 750; letter-spacing: -.055em; }
 .checkers-config h1:focus { outline: 0; }
 .checkers-playing .game-toolbar { margin-bottom: 12px; }
 .checkers-playing .match-status { min-height: 24px; padding-block: 3px; font-size: 13px; }
 
-.checkers-setup {
-  display: grid;
-  grid-template-columns: minmax(285px, .9fr) minmax(0, 1.25fr);
-  align-items: center;
-  gap: clamp(14px, 3vw, 30px);
+.checkers-setup { display: grid; place-items: center; isolation: isolate; }
+.checkers-setup > * { grid-area: 1 / 1; }
+.checkers-setup .checkers-board { opacity: .68; }
+.checkers-form {
+  z-index: 1;
+  width: min(342px, calc(100% - 20px));
+  min-width: 0;
+  margin-block: 14px;
+  padding: clamp(16px, 3.3vw, 24px);
+  border: 1px solid #fff;
+  border-radius: 18px;
+  background: #fdfefbf7;
+  backdrop-filter: blur(9px);
+  box-shadow: 0 16px 44px #36422d25, 0 0 0 1px #3846300c;
 }
-
-.checkers-form { min-width: 0; padding: clamp(16px, 3.3vw, 26px); border: 1px solid var(--checkers-line); border-radius: 17px; background: #ffffffd6; box-shadow: var(--shadow); }
 .checkers-form h2 { margin: 0 0 18px; font-size: 19px; letter-spacing: -.03em; }
 .checkers-form fieldset { min-width: 0; margin: 0; border: 0; padding: 0; }
 .checkers-form legend, .checkers-field > span { display: block; margin-bottom: 6px; padding: 0; color: var(--checkers-muted); font-size: 12px; font-weight: 570; }
@@ -99,14 +106,6 @@ button.checkers-hole:is(:hover, :focus-visible) { z-index: 1; outline: 2px solid
 .checkers-seat { display: flex; align-items: center; gap: 5px; padding: 5px 8px; border: 1px solid transparent; border-radius: 15px; color: var(--checkers-muted); font-size: 11px; white-space: nowrap; }
 .checkers-seat[aria-current] { border-color: var(--peg-edge); color: var(--ink); background: var(--camp); font-weight: 700; }
 .seat-dot { width: 8px; height: 8px; border: 1px solid var(--peg-edge); border-radius: 50%; background: var(--peg); }
-
-@media (max-width: 650px) {
-  .checkers-config { max-width: 470px; }
-  .checkers-setup { grid-template-columns: minmax(0, 1fr); justify-items: center; }
-  .checkers-setup > * { grid-area: 1 / 1; }
-  .checkers-form { z-index: 1; width: min(340px, calc(100% - 20px)); margin-block: 10px; }
-  .checkers-setup .checkers-board { opacity: .7; }
-}
 
 @media (max-width: 420px) {
   #chinese-checkers { padding: 12px 14px 24px; }
