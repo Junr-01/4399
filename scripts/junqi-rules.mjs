@@ -1,4 +1,4 @@
-import { links, points } from '../app/junqi-board.mjs';
+import { links, points } from '../shared/junqi-board.mjs';
 
 const armies = {
   commander: 1, general: 1, division: 2, brigade: 2, regiment: 2, battalion: 2,

@@ -13,6 +13,17 @@ import { createBanqiApi } from './banqi.mjs';
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const identity = createHash('sha256').update(root).digest('hex').slice(0, 16);
 export const { name, version } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+const gameFactories = {
+  gomoku: createGomokuApi,
+  xiangqi: createXiangqiApi,
+  chess: createChessApi,
+  junqi: createJunqiApi,
+  banqi: createBanqiApi,
+};
+const sharedModules = new Map([
+  ['/shared/junqi-board.mjs', 'junqi-board.mjs'],
+  ['/shared/xiangqi-position.mjs', 'xiangqi-position.mjs'],
+]);
 const mimeTypes = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -31,15 +42,10 @@ export function configuredPort() {
   return Number(value);
 }
 
-export function createGameServer({
-  codex = createCodexOpponent(version), gomokuDirectory, xiangqiDirectory, chessDirectory, junqiDirectory, junqiRandom,
-  banqiDirectory, banqiRandom,
-} = {}) {
-  const gomoku = createGomokuApi(codex, gomokuDirectory);
-  const xiangqi = createXiangqiApi(codex, xiangqiDirectory);
-  const chess = createChessApi(codex, chessDirectory);
-  const junqi = createJunqiApi(codex, junqiDirectory, junqiRandom);
-  const banqi = createBanqiApi(codex, banqiDirectory, banqiRandom);
+function createGameServer({ codex = createCodexOpponent(version), ...options } = {}) {
+  const games = new Map(Object.entries(gameFactories).map(([id, create]) => [
+    id, create(codex, options[id + 'Directory'], options[id + 'Random']),
+  ]));
   const server = createServer(async (request, response) => {
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('Cache-Control', 'no-cache');
@@ -55,11 +61,8 @@ export function createGameServer({
       send(400, 'Invalid path');
       return;
     }
-    if (pathname.startsWith('/api/gomoku/')) return gomoku.handle(request, response, pathname);
-    if (pathname.startsWith('/api/xiangqi/')) return xiangqi.handle(request, response, pathname);
-    if (pathname.startsWith('/api/chess/')) return chess.handle(request, response, pathname);
-    if (pathname.startsWith('/api/junqi/')) return junqi.handle(request, response, pathname);
-    if (pathname.startsWith('/api/banqi/')) return banqi.handle(request, response, pathname);
+    const game = games.get(/^\/api\/([^/]+)\//.exec(pathname)?.[1]);
+    if (game) return game.handle(request, response, pathname);
     if (!['GET', 'HEAD'].includes(request.method)) {
       response.setHeader('Allow', 'GET, HEAD');
       send(405, 'Method not allowed');
@@ -74,9 +77,10 @@ export function createGameServer({
       return;
     }
     const assetRequest = pathname.startsWith('/assets/');
-    const base = join(root, assetRequest ? 'assets' : 'app');
+    const sharedModule = sharedModules.get(pathname);
+    const base = join(root, assetRequest ? 'assets' : sharedModule ? 'shared' : 'app');
     const assetPath = assetRequest ? pathname.slice('/assets/'.length) : pathname.slice(1);
-    const filename = assetPath || 'index.html';
+    const filename = sharedModule ?? (assetPath || 'index.html');
     const type = mimeTypes[extname(filename)];
     if (!type) {
       send(404, 'Not found');
@@ -99,11 +103,7 @@ export function createGameServer({
     }
   });
   server.once('close', () => {
-    gomoku.close();
-    xiangqi.close();
-    chess.close();
-    junqi.close();
-    banqi.close();
+    for (const game of games.values()) game.close();
     codex.close();
   });
   return server;

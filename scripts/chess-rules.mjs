@@ -43,9 +43,9 @@ export function createChess(fen) {
   }
 
   function play(input) {
-    const { legal, result } = snapshot();
+    const { legal } = snapshot();
     const move = legal.find(entry => entry.from === input.from && entry.to === input.to && entry.promotion === input.promotion);
-    if (result || !move) return false;
+    if (!move) return false;
     const played = chess.move(move);
     moves.push({ ...move, side: colors[played.color], san: played.san });
     const key = positionKey(played.after);

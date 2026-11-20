@@ -1,11 +1,6 @@
 import { randomInt } from 'node:crypto';
-import { cancelTurn, createMatchApi, GameError, runToolTurn } from './game-api.mjs';
+import { createMatchApi, GameError, recordAiMove, runToolTurn } from './game-api.mjs';
 import { createGameWorkspace } from './game-workspace.mjs';
-
-function advanceRevision(match, afterReply = false) {
-  match.beforeReply = afterReply ? match.revision : null;
-  match.revision++;
-}
 
 export function createFlipGameApi({ name, title, size, createGame, positionDetails }, codex, directory,
   random = () => randomInt(2 ** 32) / (2 ** 32)) {
@@ -38,11 +33,10 @@ export function createFlipGameApi({ name, title, size, createGame, positionDetai
     const { turn, moves, legal, result, canUndo } = state;
     const aiTurn = Boolean(match.aiTurn);
     return {
-      id: match.id, config: match.config, ...publicPosition(state), turn: aiTurn ? 'ai' : turn,
+      ...publicPosition(state), turn: aiTurn ? 'ai' : turn,
       ply: moves.length, result: aiTurn ? null : result,
       legal: !match.paused && !aiTurn && turn === 'human' ? legal : [],
       canUndo: !match.paused && canUndo,
-      revision: match.revision, paused: match.paused, thinking: Boolean(match.turn), error: match.error,
     };
   }
 
@@ -70,8 +64,7 @@ export function createFlipGameApi({ name, title, size, createGame, positionDetai
     if (!match.game.play({ action, from, to })) {
       throw new GameError(400, action === 'flip' ? '指定点位必须有未翻开的暗子。' : '请选择合法走法。');
     }
-    turn.moveCommitted = true;
-    advanceRevision(match, true);
+    recordAiMove(match, turn);
     return '行动成功。';
   }
 
@@ -88,50 +81,15 @@ export function createFlipGameApi({ name, title, size, createGame, positionDetai
     });
   }
 
-  function act(match, input) {
-    const { action, revision } = input;
-    const canFollowReply = action === 'pause' || action === 'undo';
-    const conflict = message => new GameError(409, message, snapshot(match));
-    if (!Number.isInteger(revision) || (revision !== match.revision
-      && !(canFollowReply && revision === match.beforeReply))) {
-      throw conflict('棋局状态已更新，请重新操作。');
-    }
-    if (action === 'pause' || action === 'resume') {
-      const paused = action === 'pause';
-      if (paused === match.paused) return;
-      match.paused = paused;
-      advanceRevision(match);
-      if (paused) cancelTurn(match);
-      else scheduleTurn(match);
-      return;
-    }
-    if (match.paused) throw conflict('请先返回当前对局。');
+  function undo(match) {
+    if (!match.game.undo()) throw new GameError(409, '当前没有可撤回的走棋。');
+  }
 
-    switch (action) {
-      case 'undo':
-        if (!match.game.undo()) throw conflict('当前没有可撤回的走棋。');
-        cancelTurn(match);
-        match.aiTurn = null;
-        match.undoPending = true;
-        match.error = null;
-        advanceRevision(match);
-        break;
-      case 'retry':
-        if (!match.error) throw conflict('当前没有失败的 AI 请求。');
-        scheduleTurn(match);
-        break;
-      case 'flip':
-      case 'move': {
-        const { turn, result } = match.game.snapshot();
-        if (match.aiTurn || result || turn !== 'human') throw conflict('当前不能行动。');
-        if (!match.game.play(input)) throw new GameError(400, '请选择合法行动。');
-        advanceRevision(match);
-        scheduleTurn(match);
-        break;
-      }
-      default:
-        throw new GameError(400, '未知的对局操作。');
-    }
+  function play(match, input) {
+    if (input.action !== 'flip' && input.action !== 'move') throw new GameError(400, '未知的对局操作。');
+    const { turn, result } = match.game.snapshot();
+    if (match.aiTurn || result || turn !== 'human') throw new GameError(409, '当前不能行动。');
+    if (!match.game.play(input)) throw new GameError(400, '请选择合法行动。');
   }
 
   return createMatchApi(name, codex, {
@@ -147,11 +105,8 @@ export function createFlipGameApi({ name, title, size, createGame, positionDetai
     },
     create({ first }) {
       const firstPlayer = first === 'random' ? (random() < 0.5 ? 'human' : 'ai') : first;
-      return {
-        firstPlayer, game: createGame({ first: firstPlayer, random }),
-        revision: 0, beforeReply: null, aiTurn: null, undoPending: false,
-      };
+      return { firstPlayer, game: createGame({ first: firstPlayer, random }) };
     },
-    act, scheduleTurn, snapshot,
+    play, undo, scheduleTurn, snapshot,
   });
 }

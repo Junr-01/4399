@@ -108,7 +108,6 @@ main {
   .intro h1 { font-size: 24px; }
   .carousel-track { --card: min(380px, 73vw); }
   .game-card { border-radius: 23px; transform: translateX(calc(-50% + var(--offset) * (100% + 17px))) scale(.91); }
-  .game-card.is-selected { transform: translateX(-50%) scale(1); }
   .navigator { margin-top: 24px; gap: 20px; }
 }
 

@@ -26,7 +26,7 @@
 .return-match { display: block; margin: 17px auto -6px; padding: 4px 12px; color: #8e9782; font-size: 11px; }
 .return-match:hover { color: #445736; }
 .board { aspect-ratio: 1; width: 100%; position: relative; padding: 20px; border-radius: 16px; background: #edeedb; box-shadow: 0 12px 30px #39492d07, inset 0 0 0 1px #dee2c7; }
-.board.preview { position: relative; grid-area: 1 / 1; opacity: .42; pointer-events: none; }
+.board.preview { grid-area: 1 / 1; opacity: .42; pointer-events: none; }
 .grid-lines { position: absolute; left: 20px; top: 20px; width: calc(100% - 40px); height: calc(100% - 40px); fill: none; stroke: #b7c09d; stroke-width: .14; }
 .intersections { position: relative; z-index: 1; display: grid; width: 100%; height: 100%; grid-template-columns: repeat(var(--size), 1fr); grid-template-rows: repeat(var(--size), 1fr); }
 .intersection { display: grid; place-items: center; padding: 0; position: relative; border-radius: 50%; min-width: 0; min-height: 0; }

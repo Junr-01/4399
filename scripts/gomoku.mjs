@@ -1,4 +1,4 @@
-import { cancelTurn, createMatchApi, GameError, runToolTurn } from './game-api.mjs';
+import { createMatchApi, GameError, recordAiMove, runToolTurn } from './game-api.mjs';
 import { createGameWorkspace } from './game-workspace.mjs';
 
 const directions = [[1, 0], [0, 1], [1, 1], [1, -1]];
@@ -54,10 +54,9 @@ function place(match, row, col) {
 
 function snapshot(match) {
   return {
-    id: match.id, config: match.config, humanColor: match.humanColor,
+    humanColor: match.humanColor,
     moves: match.moves, result: match.aiTurn ? null : match.result,
     winning: match.aiTurn ? [] : match.winning,
-    paused: match.paused, thinking: Boolean(match.turn), error: match.error,
     canUndo: match.moves.some(move => move.color === match.humanColor),
   };
 }
@@ -74,7 +73,7 @@ function callTurnTool(match, turn, name, args) {
   const error = moveError(match, args?.row, args?.col);
   if (error) throw new GameError(400, error);
   place(match, args.row, args.col);
-  turn.moveCommitted = true;
+  recordAiMove(match, turn);
   return '落子成功。请结束本回合。';
 }
 
@@ -98,50 +97,24 @@ function scheduleTurn(match) {
 function undo(match) {
   const last = match.moves.findLastIndex(move => move.color === match.humanColor);
   if (last < 0) throw new GameError(409, '当前没有可撤回的落子。');
-  cancelTurn(match);
-  match.aiTurn = null;
-  match.undoPending = true;
   for (const move of match.moves.splice(last)) match.board[move.row][move.col] = null;
   match.result = null;
   match.winning = [];
-  match.error = null;
 }
 
-function act(match, input) {
-  if (input.action === 'pause') {
-    match.paused = true;
-    cancelTurn(match);
-  } else if (input.action === 'resume') {
-    match.paused = false;
-    scheduleTurn(match);
-  } else {
-    if (match.paused) throw new GameError(409, '请先返回当前对局。');
-    switch (input.action) {
-      case 'move':
-        if (match.turn || match.aiTurn || match.result || nextColor(match) !== match.humanColor) {
-          throw new GameError(409, '当前不能落子。');
-        }
-        if (moveError(match, input.row, input.col)) throw new GameError(400, '请选择空交叉点。');
-        place(match, input.row, input.col);
-        scheduleTurn(match);
-        break;
-      case 'undo':
-        undo(match);
-        break;
-      case 'retry':
-        if (!match.error) throw new GameError(409, '当前没有失败的落子请求。');
-        scheduleTurn(match);
-        break;
-      default:
-        throw new GameError(400, '未知的对局操作。');
-    }
+function play(match, input) {
+  if (input.action !== 'move') throw new GameError(400, '未知的对局操作。');
+  if (match.turn || match.aiTurn || match.result || nextColor(match) !== match.humanColor) {
+    throw new GameError(409, '当前不能落子。');
   }
+  if (moveError(match, input.row, input.col)) throw new GameError(400, '请选择空交叉点。');
+  place(match, input.row, input.col);
 }
-
 
 export function createGomokuApi(codex, directory) {
   const workspace = createGameWorkspace('gomoku', directory);
   return createMatchApi('gomoku', codex, {
+    allowUnversioned: true,
     initialize: workspace.initialize,
     prepare({ size }, id, { humanColor }) {
       const first = humanColor === 'black' ? '对手（人类玩家）执黑先下，你执白后下。'
@@ -160,9 +133,9 @@ export function createGomokuApi(codex, directory) {
       return {
         humanColor: humanFirst ? 'black' : 'white',
         board: Array.from({ length: size }, () => Array(size).fill(null)),
-        moves: [], winning: [], result: null, aiTurn: null, undoPending: false,
+        moves: [], winning: [], result: null,
       };
     },
-    act, scheduleTurn, snapshot,
+    play, undo, scheduleTurn, snapshot,
   });
 }

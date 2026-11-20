@@ -120,6 +120,26 @@ test('undo cancels a pending response and the next turn receives only the update
   assert.deepEqual((await request(path, { action: 'undo' })).moves, []);
 });
 
+test('a versioned undo can include the just-committed AI reply only once', async t => {
+  const { request, settled } = await game(t, input => {
+    const { lastMove } = input.callTool('get_position', {});
+    input.callTool('place_stone', { row: lastMove.row, col: lastMove.col + 1 });
+  });
+  const opening = await request('/matches', config, 201);
+  const path = '/matches/' + opening.id;
+  await request(path, { action: 'move', row: 4, col: 4, revision: opening.revision });
+  const firstReply = await settled(opening.id);
+  const secondMove = await request(path, { action: 'move', row: 5, col: 4, revision: firstReply.revision });
+  const secondReply = await settled(opening.id);
+  assert.equal(secondReply.moves.length, 4);
+
+  const undo = { action: 'undo', revision: secondMove.revision };
+  const restored = await request(path, undo);
+  assert.deepEqual(restored.moves, firstReply.moves);
+  const duplicate = await request(path, undo, 409);
+  assert.deepEqual(duplicate.snapshot, restored);
+});
+
 test('preserves a successful AI stone across three failed retries and a manual recovery', async t => {
   let attempts = 0;
   const { request, settled } = await game(t, input => {
