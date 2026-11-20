@@ -1,5 +1,5 @@
 import { adjudicate } from './xiangqi-adjudication.mjs';
-import { initialPlacement, parseBoard } from '../app/xiangqi-position.mjs';
+import { initialPlacement, parseBoard } from '../shared/xiangqi-position.mjs';
 import { inCheck, legalMoves, movedBoard, opposite, positionKey } from './xiangqi-board.mjs';
 
 function frame(board, side, quietPlies) {

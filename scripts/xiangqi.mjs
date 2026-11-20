@@ -1,4 +1,4 @@
-import { cancelTurn, createMatchApi, GameError, runToolTurn } from './game-api.mjs';
+import { createMatchApi, GameError, recordAiMove, runToolTurn } from './game-api.mjs';
 import { createGameWorkspace } from './game-workspace.mjs';
 import { moveRejectionReason } from './xiangqi-board.mjs';
 import { createXiangqi } from './xiangqi-rules.mjs';
@@ -19,22 +19,17 @@ const xiangqiTools = [
   },
 ];
 
-function advanceRevision(match, afterReply = false) {
-  match.revision++;
-  match.beforeReply = afterReply ? match.revision - 1 : null;
-}
-
 function snapshot(match) {
   const { board, side, legal, check, result, moves, adjudication, canClaimDraw } = match.game.snapshot();
   const aiTurn = Boolean(match.aiTurn);
   const humanTurn = !match.paused && !aiTurn && !result && side === match.humanSide;
   return {
-    id: match.id, config: match.config, humanSide: match.humanSide,
-    board, side, check, result: aiTurn ? null : result, adjudication, revision: match.revision,
+    humanSide: match.humanSide,
+    board, side, check, result: aiTurn ? null : result, adjudication,
     lastMove: moves.at(-1) ?? null, legal: humanTurn ? legal : [],
     canClaimDraw: humanTurn && canClaimDraw,
     canUndo: moves.some(move => move.side === match.humanSide),
-    aiTurn, paused: match.paused, thinking: Boolean(match.turn), error: match.error,
+    aiTurn,
   };
 }
 
@@ -57,8 +52,7 @@ function callTurnTool(match, turn, name, args) {
   const { board, side } = match.game.snapshot();
   if (side !== turn.side) throw new GameError(409, '当前未轮到 AI 走棋。');
   if (!match.game.play({ from, to })) throw new GameError(400, moveRejectionReason(board, side, { from, to }));
-  turn.moveCommitted = true;
-  advanceRevision(match, true);
+  recordAiMove(match, turn);
   return '走棋成功。';
 }
 
@@ -80,64 +74,21 @@ function scheduleTurn(match) {
   });
 }
 
-function undo(match, moves) {
+function undo(match) {
+  const { moves } = match.game.snapshot();
   const index = moves.findLastIndex(move => move.side === match.humanSide);
   if (index < 0) throw new GameError(409, '当前没有可撤回的着法。');
-  cancelTurn(match);
-  match.aiTurn = null;
-  match.undoPending = true;
   match.game.undoTo(index);
-  match.error = null;
-  advanceRevision(match);
 }
 
-function act(match, input) {
-  // Pause and undo may arrive just after the AI answers the position shown.
-  const acceptsReply = input.action === 'pause' || input.action === 'undo';
-  if (!Number.isInteger(input.revision) || (input.revision !== match.revision
-    && !(acceptsReply && input.revision === match.beforeReply))) {
-    throw new GameError(409, '棋局状态已更新，请刷新后再操作。');
-  }
-  if (input.action === 'pause') {
-    if (match.paused) return;
-    match.paused = true;
-    cancelTurn(match);
-    advanceRevision(match);
-    return;
-  }
-  if (input.action === 'resume') {
-    if (!match.paused) return;
-    match.paused = false;
-    advanceRevision(match);
-    scheduleTurn(match);
-    return;
-  }
-  if (match.paused) throw new GameError(409, '请先返回当前对局。');
-
-  const state = match.game.snapshot();
-  switch (input.action) {
-    case 'undo':
-      undo(match, state.moves);
-      break;
-    case 'retry':
-      if (!match.error) throw new GameError(409, '当前没有失败的走棋请求。');
-      scheduleTurn(match);
-      break;
-    case 'move':
-    case 'claim-draw':
-      if (match.aiTurn || state.result || state.side !== match.humanSide) {
-        throw new GameError(409, '当前不能走棋或申请和棋。');
-      }
-      if (input.action === 'claim-draw') {
-        if (!match.game.claimDraw(match.humanSide)) throw new GameError(409, '当前未达到自然限着条件。');
-      } else if (!match.game.play(input)) {
-        throw new GameError(400, '请选择合法着法。');
-      }
-      advanceRevision(match);
-      scheduleTurn(match);
-      break;
-    default:
-      throw new GameError(400, '未知的对局操作。');
+function play(match, input) {
+  if (input.action !== 'move' && input.action !== 'claim-draw') throw new GameError(400, '未知的对局操作。');
+  const { side, result } = match.game.snapshot();
+  if (match.aiTurn || result || side !== match.humanSide) throw new GameError(409, '当前不能走棋或申请和棋。');
+  if (input.action === 'claim-draw') {
+    if (!match.game.claimDraw(match.humanSide)) throw new GameError(409, '当前未达到自然限着条件。');
+  } else if (!match.game.play(input)) {
+    throw new GameError(400, '请选择合法着法。');
   }
 }
 
@@ -157,8 +108,8 @@ export function createXiangqiApi(codex, directory) {
     },
     create({ side }) {
       const humanSide = side === 'random' ? (Math.random() < 0.5 ? 'red' : 'black') : side;
-      return { game: createXiangqi(), humanSide, revision: 0, beforeReply: null, aiTurn: null, undoPending: false };
+      return { game: createXiangqi(), humanSide };
     },
-    act, scheduleTurn, snapshot,
+    play, undo, scheduleTurn, snapshot,
   });
 }

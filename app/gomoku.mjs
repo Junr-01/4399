@@ -1,57 +1,29 @@
 import { effortOption, escapeHtml as html, selectModel } from './game-models.mjs';
 import { createResultDialog, gameToolbar, matchFeedback, matchLayout, matchPlayer, matchResult } from './match-ui.mjs';
+import { createMatchSession } from './match-session.mjs';
 
 const main = document.querySelector('#gomoku');
 const showResult = createResultDialog(main);
-const api = '/api/gomoku';
 const colors = { black: '黑方', white: '白方' };
 const draft = { size: 15, first: 'you', model: '', effort: '' };
-let models = [];
-let match = null;
-let setup = true;
-let busy = false;
-let error = '';
-let poll;
-let revision = 0;
+const session = createMatchSession('gomoku', draft, render);
 
 const disabled = value => value ? 'disabled' : '';
 const opposite = color => color === 'black' ? 'white' : 'black';
-
-async function request(path, data) {
-  const response = await fetch(api + path, data === undefined ? undefined : {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  const body = response.headers.get('content-type')?.includes('application/json') ? await response.json() : null;
-  if (!response.ok || !body) {
-    const failure = new Error(body?.error ?? '游戏服务未返回有效数据，请重启 43gg 后重试。');
-    failure.status = response.status;
-    throw failure;
-  }
-  return body;
-}
-
-async function loadModels() {
-  ({ models } = await request('/models'));
-  applyModelSelection();
-}
-
-function applyModelSelection() {
-  selectModel(models, draft);
-}
 
 function stone(color, last = false) {
   return `<span aria-hidden="true" class="stone ${color}${last ? ' last' : ''}"></span>`;
 }
 
 function choices(key, label, options) {
+  const { busy } = session.state;
   const buttons = options.map(([value, text]) => `
     <button data-config="${key}" data-value="${value}" aria-pressed="${draft[key] === value}" ${disabled(busy)}>${text}</button>`);
   return `<fieldset><legend>${label}</legend><div class="choices">${buttons.join('')}</div></fieldset>`;
 }
 
 function picker(key, label, options) {
+  const { busy } = session.state;
   const items = options.map(([value, text]) => `<option value="${html(value)}" ${draft[key] === value ? 'selected' : ''}>${html(text)}</option>`);
   return `<label class="select-field"><span>${label}</span><span class="select-wrap">
     <select data-config="${key}" ${disabled(busy || !options.length)}>${items.join('') || '<option>—</option>'}</select>
@@ -59,6 +31,7 @@ function picker(key, label, options) {
 }
 
 function board(size, preview) {
+  const { match, busy, error } = session.state;
   const edge = 50 / size;
   const lines = Array.from({ length: size }, (_, index) => {
     const point = edge + index * 100 / size;
@@ -93,6 +66,7 @@ function board(size, preview) {
 }
 
 function setupView() {
+  const { models, match, busy, error, actionError } = session.state;
   const model = models.find(item => item.id === draft.model);
   const currentEfforts = model?.efforts ?? [];
   return `<div class="setup-stage">
@@ -103,7 +77,7 @@ function setupView() {
       ${picker('model', '对手模型', models.map(item => [item.id, item.name]))}
       ${picker('effort', '思考强度', currentEfforts.map(value => [value, effortOption(value)]))}
       ${choices('first', '先手', [['you', '我先下'], ['ai', 'AI 先下'], ['random', '随机']])}
-      <p class="match-error" role="status">${html(error)}</p>
+      <p class="match-error" role="status">${html(error || actionError)}</p>
       ${error && !models.length
         ? '<button class="primary" data-action="catalog">重试加载模型</button>'
         : `<button class="primary" data-action="start" ${disabled(busy || !model)}>${busy ? (model ? '请稍候' : '正在加载模型') : '开始对局'}<span aria-hidden="true">→</span></button>`}
@@ -114,6 +88,7 @@ function setupView() {
 }
 
 function playView(result) {
+  const { match, busy, error, actionError } = session.state;
   const { humanColor, thinking, config } = match;
   const aiColor = opposite(humanColor);
   const message = error || match.error;
@@ -122,11 +97,12 @@ function playView(result) {
     player: matchPlayer('你', colors[humanColor], stone(humanColor), !thinking && !result && !message),
     board: board(config.size, false),
     status: result?.status ?? (message ? '对局暂未更新' : thinking ? 'AI 正在思考' : '轮到你落子'),
-    notice: matchFeedback(error, match.error, busy),
+    notice: matchFeedback(error, match.error, busy, actionError),
   });
 }
 
 function render(focus) {
+  const { match, busy, setup } = session.state;
   const result = match?.result ? (match.result === 'draw'
     ? matchResult(null, match.humanColor, '棋盘已满')
     : matchResult(match.result, match.humanColor, '五子连珠')) : null;
@@ -138,77 +114,19 @@ function render(focus) {
   showResult(match, result, busy);
 }
 
-function watchTurn() {
-  clearTimeout(poll);
-  if (setup || busy || !match?.thinking || error) return;
-  const version = revision;
-  const id = match.id;
-  poll = setTimeout(async () => {
-    const moveCount = match.moves.length;
-    try {
-      const updated = await request('/matches/' + id);
-      if (version !== revision) return;
-      applyMatch(updated);
-    } catch (failure) {
-      if (version !== revision) return;
-      showError(failure);
-    }
-    if (setup || !match.thinking || error || match.moves.length !== moveCount) render();
-    watchTurn();
-  }, 400);
-}
-
-function showError(failure) {
-  if (failure.status === 404) {
-    match = null;
-    setup = true;
-  }
-  error = failure instanceof TypeError ? '无法连接本地游戏服务，请重试。' : failure.message;
-}
-
-function applyMatch(updated) {
-  const viewChanged = setup !== updated.paused;
-  match = updated;
-  setup = match.paused;
-  if (!viewChanged) return;
-  if (setup) {
-    const { size, first, model, effort } = match.config;
-    Object.assign(draft, { size, first, model, effort });
-    applyModelSelection();
-  }
-  window.scrollTo(0, 0);
-}
-
-async function perform(work) {
-  if (busy) return;
-  const previous = setup;
-  busy = true;
-  error = '';
-  revision++;
-  clearTimeout(poll);
-  render();
-  try { await work(); }
-  catch (failure) { showError(failure); }
-  finally {
-    busy = false;
-    render(previous === setup ? undefined : setup ? 'h1' : '.match-status');
-    watchTurn();
-  }
-}
-
 main.addEventListener('change', (event) => {
   const select = event.target.closest('select[data-config]');
-  if (!select || busy) return;
+  if (!select || session.state.busy) return;
   const key = select.dataset.config;
   draft[key] = select.value;
-  applyModelSelection();
+  selectModel(session.state.models, draft);
   render();
   main.querySelector(`select[data-config="${key}"]`).focus({ preventScroll: true });
 });
 
 main.addEventListener('click', (event) => {
   const button = event.target.closest('button');
-  if (!button || button.disabled || busy) return;
+  if (!button || button.disabled || session.state.busy) return;
   const { config: key, value, action, row, col } = button.dataset;
   if (key) {
     draft[key] = key === 'size' ? Number(value) : value;
@@ -216,22 +134,10 @@ main.addEventListener('click', (event) => {
     main.querySelector(`button[data-config="${key}"][data-value="${value}"]`).focus({ preventScroll: true });
     return;
   }
-  if (action === 'catalog') return perform(loadModels);
-  if (action === 'start') return perform(async () => {
-    applyMatch(await request('/matches', { ...draft, replace: match?.id }));
-  });
-  perform(async () => {
-    const path = '/matches/' + match.id;
-    if (action === 'refresh') {
-      applyMatch(await request(path));
-      return;
-    }
-    applyMatch(await request(path, row === undefined ? { action } : { action: 'move', row: Number(row), col: Number(col) }));
-  });
+  if (action === 'catalog') return session.loadModels();
+  if (action === 'start') return session.start();
+  if (row !== undefined) session.act('move', { row: Number(row), col: Number(col) });
+  else if (action) session.act(action);
 });
 
-window.addEventListener('pagehide', (event) => {
-  if (match && !event.persisted) fetch(api + '/matches/' + match.id, { method: 'DELETE', keepalive: true }).catch(() => {});
-});
-
-perform(loadModels);
+session.loadModels();

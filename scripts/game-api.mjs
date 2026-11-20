@@ -12,10 +12,20 @@ export class GameError extends Error {
   }
 }
 
-export function cancelTurn(match) {
+function cancelTurn(match) {
   const current = match.turn;
   match.turn = null;
   current?.abort();
+}
+
+function advanceRevision(match, afterReply = false) {
+  match.beforeReply = afterReply ? match.revision : null;
+  match.revision++;
+}
+
+export function recordAiMove(match, turn) {
+  turn.moveCommitted = true;
+  advanceRevision(match, true);
 }
 
 function runTurnTask(match, play, failureMessage) {
@@ -87,10 +97,58 @@ async function readInput(request) {
   throw new GameError(400, '无效请求。');
 }
 
-export function createMatchApi(name, codex, { configure, create, snapshot, scheduleTurn, act, initialize, prepare, reserveId = false }) {
+export function createMatchApi(name, codex, {
+  configure, create, snapshot, scheduleTurn, play, undo, initialize, prepare,
+  reserveId = false, allowUnversioned = false,
+}) {
   const matches = new Map();
   const reservations = new Map();
   const prefix = '/api/' + name;
+
+  function view(match) {
+    return {
+      ...snapshot(match), id: match.id, config: match.config,
+      revision: match.revision, paused: match.paused, thinking: Boolean(match.turn), error: match.error,
+    };
+  }
+
+  function applyAction(match, input) {
+    const { action, revision } = input;
+    // Pause and undo may arrive just after the AI answers the position shown.
+    const canFollowReply = action === 'pause' || action === 'undo';
+    if (!(allowUnversioned && revision === undefined)
+      && (!Number.isInteger(revision) || (revision !== match.revision
+        && !(canFollowReply && revision === match.beforeReply)))) {
+      throw new GameError(409, '棋局状态已更新，请重新操作。');
+    }
+    if (action === 'pause' || action === 'resume') {
+      const paused = action === 'pause';
+      if (paused === match.paused) return;
+      match.paused = paused;
+      advanceRevision(match);
+      if (paused) cancelTurn(match);
+      else scheduleTurn(match);
+      return;
+    }
+    if (match.paused) throw new GameError(409, '请先返回当前对局。');
+
+    if (action === 'undo') {
+      undo(match);
+      cancelTurn(match);
+      match.aiTurn = null;
+      match.undoPending = true;
+      match.error = null;
+      advanceRevision(match);
+      return;
+    }
+    if (action === 'retry') {
+      if (!match.error) throw new GameError(409, '当前没有失败的 AI 请求。');
+    } else {
+      play(match, input);
+      advanceRevision(match);
+    }
+    scheduleTurn(match);
+  }
 
   function remove(id) {
     reservations.delete(id);
@@ -136,7 +194,7 @@ export function createMatchApi(name, codex, { configure, create, snapshot, sched
     if (!old && matches.size >= 32) throw new GameError(409, '对局数量过多，请关闭闲置对局后再试。');
 
     let id;
-    if (reserveId) {
+    if (reserveId || input.id !== undefined) {
       id = input.id;
       if (!(reservations.get(id) > Date.now())) throw new GameError(404, '本次开局已关闭，请重新开始。');
       reservations.delete(id);
@@ -147,12 +205,13 @@ export function createMatchApi(name, codex, { configure, create, snapshot, sched
     const opponentOptions = prepare?.(config, id, state);
     const match = {
       ...state, id, config, lastSeen: Date.now(), paused: false,
+      revision: 0, beforeReply: null, aiTurn: null, undoPending: false,
       turn: null, error: null, task: Promise.resolve(), opponent: codex.openMatch(config, name, opponentOptions),
     };
     if (old) remove(old.id);
     matches.set(match.id, match);
     scheduleTurn(match);
-    return snapshot(match);
+    return view(match);
   }
 
   async function handle(request, response, path) {
@@ -167,19 +226,24 @@ export function createMatchApi(name, codex, { configure, create, snapshot, sched
       const matchRoute = path.slice(prefix.length).match(/^\/matches\/([\da-f-]+)$/);
       if (method === 'GET' && path === prefix + '/models') {
         output = { models: await catalog() };
-      } else if (reserveId && method === 'POST' && path === prefix + '/reservations') {
+      } else if (method === 'POST' && path === prefix + '/reservations') {
         output = reserve();
         status = 201;
       } else if (method === 'POST' && path === prefix + '/matches') {
         output = await start(await readInput(request));
         status = 201;
       } else if (matchRoute && method === 'GET') {
-        output = snapshot(getMatch(matchRoute[1]));
+        output = view(getMatch(matchRoute[1]));
       } else if (matchRoute && method === 'POST') {
         const input = await readInput(request);
         const match = getMatch(matchRoute[1]);
-        act(match, input);
-        output = snapshot(match);
+        try {
+          applyAction(match, input);
+        } catch (error) {
+          if (error instanceof GameError && error.status === 409) error.snapshot = view(match);
+          throw error;
+        }
+        output = view(match);
       } else if (matchRoute && method === 'DELETE') {
         remove(matchRoute[1]);
         status = 204;

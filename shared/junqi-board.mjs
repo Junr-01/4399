@@ -4,7 +4,7 @@ export const points = Array.from({ length: 60 }, (_, id) => {
   const halfRow = Math.min(row, 11 - row);
   const camp = ([2, 4].includes(halfRow) && [1, 3].includes(col)) || (halfRow === 3 && col === 2);
   const base = halfRow === 0 && [1, 3].includes(col);
-  return { id, row, col, camp, base, x: 40 + col * 80, y: 26 + row * 41 + (row >= 6 ? 36 : 0) };
+  return { id, row, col, camp, base };
 });
 
 function connection(a, b) {

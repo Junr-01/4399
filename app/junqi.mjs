@@ -1,5 +1,5 @@
 import { mountFlipMatch } from './flip-match.mjs';
-import { lines, points } from './junqi-board.mjs';
+import { lines, points } from '../shared/junqi-board.mjs';
 
 const colorNames = { red: '红方', blue: '蓝方' };
 const pieceNames = {
@@ -12,13 +12,18 @@ const reasons = {
 };
 const previewBoard = points.map(({ camp }) => camp ? null : 'dark');
 
-const segment = ({ a, b }) => `M${a.x} ${a.y}L${b.x} ${b.y}`;
+const plot = points.map(point => ({
+  ...point,
+  x: 40 + point.col * 80,
+  y: 26 + point.row * 41 + (point.row >= 6 ? 36 : 0),
+}));
+const segment = ({ a, b }) => `M${plot[a.id].x} ${plot[a.id].y}L${plot[b.id].x} ${plot[b.id].y}`;
 const rails = lines.filter(line => line.type === 'rail').map(segment).join('');
 const roads = lines.filter(line => line.type === 'road').map(segment).join('');
 const boardArt = `<svg class="board-lines" viewBox="0 0 400 539" aria-hidden="true">
   <path class="roads" d="${roads}"/>
   <path class="rail-edge" d="${rails}"/><path class="rail-bed" d="${rails}"/><path class="rail-ties" d="${rails}"/>
-  ${points.map(({ x, y, camp, base }) => camp
+  ${plot.map(({ x, y, camp, base }) => camp
     ? `<ellipse class="camp-site" cx="${x}" cy="${y}" rx="17" ry="13"/>`
     : `<rect class="${base ? 'base-site' : 'station'}" x="${x - 28}" y="${y - 13}" width="56" height="26" rx="${base ? 4 : 3}"/>`).join('')}
 </svg>`;
@@ -29,7 +34,7 @@ function renderBoard(cells, legal, last, selected, preview) {
   const targets = new Set(legal.filter(action => action.from === selected && action.action === 'move').map(action => action.to));
   return `<div class="junqi-board" ${preview ? 'aria-hidden="true"' : 'role="group" aria-label="军棋棋盘"'}>
     <div class="board-plot">${boardArt}
-      ${points.map(({ id, x, y, row, col, camp, base }) => {
+      ${plot.map(({ id, x, y, row, col, camp, base }) => {
         const piece = cells[id];
         const dark = piece === 'dark';
         const target = targets.has(id);

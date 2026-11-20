@@ -20,7 +20,8 @@ test('serves the homepage, JavaScript and every cover with browser MIME types', 
   const html = await home.text();
   assert.match(html, /和AI玩几把/);
   assert.match(html, /type="module" src="\/app.mjs"/);
-  for (const route of ['/app.mjs', '/games.mjs', '/selection.mjs']) {
+  for (const route of ['/app.mjs', '/games.mjs', '/selection.mjs', '/match-session.mjs', '/flip-match.mjs',
+    '/shared/junqi-board.mjs', '/shared/xiangqi-position.mjs']) {
     const response = await fetch(base + route);
     assert.equal(response.status, 200);
     assert.match(response.headers.get('content-type'), /javascript/);
@@ -51,7 +52,8 @@ test('health identifies the running installation for launch and stop', async () 
 });
 
 test('does not expose repo files or allow writes', async () => {
-  for (const route of ['/.git/config', '/plugin.json', '/%2e%2e%2fplugin.json', '/assets/%2e%2e%2fplugin.json', '/missing.html']) {
+  for (const route of ['/.git/config', '/plugin.json', '/%2e%2e%2fplugin.json', '/assets/%2e%2e%2fplugin.json',
+    '/scripts/server.mjs', '/shared/%2e%2e%2fscripts%2fserver.mjs', '/missing.html']) {
     assert.equal((await fetch(base + route)).status, 404, route);
   }
   assert.equal((await fetch(`${base}/%ZZ`)).status, 400);
@@ -60,24 +62,16 @@ test('does not expose repo files or allow writes', async () => {
   assert.equal(response.headers.get('allow'), 'GET, HEAD');
 });
 
-test('serves the playable Junqi card and its setup page', async () => {
-  assert.equal(games.find(game => game.id === 'junqi')?.href, '/junqi.html');
-  const page = await fetch(base + '/junqi.html');
-  assert.equal(page.status, 200);
-  assert.match(await page.text(), /type="module" src="\/junqi.mjs"/);
-  const module = await fetch(base + '/junqi-board.mjs');
-  assert.equal(module.status, 200);
-  assert.match(module.headers.get('content-type'), /javascript/);
-});
-
-test('serves the playable Banqi card and its setup page', async () => {
-  assert.equal(games.find(game => game.id === 'banqi')?.href, '/banqi.html');
-  const page = await fetch(base + '/banqi.html');
-  assert.equal(page.status, 200);
-  assert.match(await page.text(), /type="module" src="\/banqi.mjs"/);
-  for (const route of ['/banqi.mjs', '/flip-match.mjs']) {
-    const module = await fetch(base + route);
-    assert.equal(module.status, 200);
-    assert.match(module.headers.get('content-type'), /javascript/);
+test('every listed game has a page, an entry module and a match route', async () => {
+  for (const { id, href } of games) {
+    const page = await fetch(base + href);
+    assert.equal(page.status, 200, id);
+    assert.ok((await page.text()).includes(`type="module" src="/${id}.mjs"`), id);
+    const entry = await fetch(`${base}/${id}.mjs`);
+    assert.equal(entry.status, 200, id);
+    assert.match(entry.headers.get('content-type'), /javascript/);
+    const match = await fetch(`${base}/api/${id}/matches/00000000-0000-0000-0000-000000000000`);
+    assert.equal(match.status, 404, id);
+    assert.match((await match.json()).error, /本局已结束/);
   }
 });

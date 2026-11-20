@@ -33,12 +33,13 @@ export function matchResult(winner, human, detail) {
   return { title, detail, status: detail ? `${title} · ${detail}` : title };
 }
 
-export function matchFeedback(error, aiError, busy) {
+export function matchFeedback(error, aiError, busy, actionError) {
   const message = error || aiError;
-  return message ? `<div class="match-feedback">
-    <p role="alert">${escapeHtml(message)}</p>
-    <button class="match-button" type="button" data-action="${error ? 'refresh' : 'retry'}" ${busy ? 'disabled' : ''}>${error ? '刷新棋局' : '重试'}</button>
-  </div>` : '';
+  if (!message && !actionError) return '';
+  return `<div class="match-feedback">
+    <p role="alert">${escapeHtml(message || actionError)}</p>
+    ${message ? `<button class="match-button" type="button" data-action="${error ? 'refresh' : 'retry'}" ${busy ? 'disabled' : ''}>${error ? '刷新棋局' : '重试'}</button>` : ''}
+  </div>`;
 }
 
 export function createResultDialog(main) {
