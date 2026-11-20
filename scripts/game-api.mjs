@@ -5,10 +5,9 @@ const reservationExpiry = 2 * 60 * 1000;
 const maxToolTurnAttempts = 4;
 
 export class GameError extends Error {
-  constructor(status, message, snapshot) {
+  constructor(status, message) {
     super(message);
     this.status = status;
-    this.snapshot = snapshot;
   }
 }
 
@@ -170,7 +169,7 @@ export function createMatchApi(name, codex, {
   }
 
   async function catalog() {
-    if (initialize) await initialize();
+    await initialize();
     try { return await codex.catalog(); }
     catch (error) { throw new GameError(503, error.userMessage ?? '无法读取 Codex 模型。请检查本机 Codex 的登录及连接，再重试。'); }
   }
@@ -202,7 +201,7 @@ export function createMatchApi(name, codex, {
 
     const config = { ...options, modelName: model.name };
     const state = create(config);
-    const opponentOptions = prepare?.(config, id, state);
+    const opponentOptions = prepare(config, id, state);
     const match = {
       ...state, id, config, lastSeen: Date.now(), paused: false,
       revision: 0, beforeReply: null, aiTurn: null, undoPending: false,

@@ -41,7 +41,6 @@ export function createMatchSession(id, draft, render, onSnapshot) {
   }
 
   function watchTurn() {
-    clearTimeout(poll);
     if (leaving || state.setup || state.busy || state.error || !state.match.thinking) return;
     const currentEpoch = epoch;
     const previous = state.match;

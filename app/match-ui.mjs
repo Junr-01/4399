@@ -16,7 +16,7 @@ export function matchPlayer(label, side, marker, active) {
   </div>`;
 }
 
-export function matchLayout({ opponent, player, board, status, notice = '' }) {
+export function matchLayout({ opponent, player, board, status, notice }) {
   return `<section class="match-view">
     <div class="match-top">
       ${opponent}
@@ -62,10 +62,7 @@ export function createResultDialog(main) {
         <button class="match-button" type="button" data-view-board autofocus>查看棋盘</button>
         <button class="match-button result-replay" type="button" data-action="pause">再来一局</button>
       </div>`;
-    dialog.querySelector('[data-view-board]').addEventListener('click', event => {
-      event.stopPropagation();
-      dialog.close();
-    });
+    dialog.querySelector('[data-view-board]').addEventListener('click', () => dialog.close());
     dialog.addEventListener('close', () => {
       if (!dialog.isConnected) return;
       dialog.remove();

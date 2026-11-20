@@ -54,7 +54,7 @@ function board(size, preview) {
     const last = move?.index === match.moves.length - 1;
     const label = String.fromCharCode(65 + col) + (size - row)
       + (move ? (move.color === 'black' ? ' 黑棋' : ' 白棋') : '') + (last ? ' 最近一步' : '');
-    const classes = ['intersection', isStar && 'star', move && 'occupied', winning.has(index) && 'winning'].filter(Boolean);
+    const classes = ['intersection', isStar && 'star', winning.has(index) && 'winning'].filter(Boolean);
     return `<button class="${classes.join(' ')}" data-row="${row}" data-col="${col}" aria-label="${label}" ${disabled(locked || move)}>
       ${move ? stone(move.color, last) : '<span class="ghost"></span>'}
     </button>`;

@@ -59,7 +59,7 @@ function board(preview = false) {
   const bottom = flipped ? '987654321' : '九八七六五四三二一';
   const labels = (where, numbers) => `<div class="files-labels ${where}" aria-hidden="true">${Array.from(numbers, (label, col) =>
     `<span style="left:${col / 8 * 100}%">${label}</span>`).join('')}</div>`;
-  return `<div class="xiangqi-board ${preview ? 'preview' : ''}" ${preview ? 'aria-hidden="true"' : 'role="group" aria-label="中国象棋棋盘"'}>
+  return `<div class="xiangqi-board" ${preview ? 'aria-hidden="true"' : 'role="group" aria-label="中国象棋棋盘"'}>
     <div class="board-plane"><div aria-hidden="true">${lines}${labels('top', top)}${labels('bottom', bottom)}
       <div class="river"><span>楚河</span><span>漢界</span></div></div>${cells}
     </div>
@@ -79,7 +79,7 @@ function setupView() {
   const { models, match, busy, error, actionError } = session.state;
   const model = models.find(entry => entry.id === draft.model);
   const efforts = model?.efforts.map(value => [value, effortOption(value)]) ?? [];
-  return `<section class="setup-layout overlay">
+  return `<section class="overlay">
     ${board(true)}
     <form class="setup-form" aria-labelledby="setup-title">
       <h2 id="setup-title">对局设置</h2>

@@ -50,7 +50,7 @@ function renderBoard(cells, legal, last, selected, preview) {
         const recent = from ? ' 最近一步起点' : to ? (last.action === 'flip' ? ' 最近翻开' : ' 最近一步落点') : '';
         const label = `${target ? piece ? '攻击 ' : '移动至 ' : ''}${row + 1} 行 ${col + 1} 列 ${description}${recent}`;
         const classes = ['board-point', from && 'last-from', to && 'last-to',
-          target && 'target', id === selected && !preview && 'selected'].filter(Boolean).join(' ');
+          target && 'target', id === selected && 'selected'].filter(Boolean).join(' ');
         const style = `style="--x:${x / 4}%;--y:${y / 539 * 100}%"`;
         return flips.has(id) || origin || target
           ? `<button class="${classes}" type="button" ${style} data-point="${id}" aria-label="${label}" ${origin ? `aria-pressed="${id === selected}"` : ''}>${tile}</button>`

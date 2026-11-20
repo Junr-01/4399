@@ -42,7 +42,7 @@ export function configuredPort() {
   return Number(value);
 }
 
-export function createGameServer({ codex = createCodexOpponent(version), ...options } = {}) {
+function createGameServer({ codex = createCodexOpponent(version), ...options } = {}) {
   const games = new Map(Object.entries(gameFactories).map(([id, create]) => [
     id, create(codex, options[id + 'Directory'], options[id + 'Random']),
   ]));
