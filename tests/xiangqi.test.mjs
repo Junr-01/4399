@@ -118,34 +118,22 @@ test('reads the current position, accepts a legal AI move, and keeps the player 
 });
 
 test('black can retry and undo an AI capture that survived four failed attempts', async t => {
-  let attempts = 0;
+  const attempts = [];
   const { request, settled } = await game(t, input => {
-    const attempt = ++attempts;
-    const position = input.callTool('get_position', {});
-    if (attempt === 1) {
-      assert.equal(input.text, '棋局开始');
-      return movePiece(input, 'h3', 'e3');
-    }
-    if (attempt === 2) {
-      assert.equal(input.text, '我已落子');
-      return;
-    }
-    if (attempt === 3) {
-      assert.match(input.text, /查看当前局面/);
-      assert.equal(position.moveCommitted, false);
+    const attempt = { text: input.text, position: input.callTool('get_position', {}) };
+    attempts.push(attempt);
+    if (attempts.length === 1) return movePiece(input, 'h3', 'e3');
+    if (attempts.length === 2) return;
+    if (attempts.length === 3) {
       throw new DOMException('Codex took too long before moving', 'TimeoutError');
     }
-    if (attempt === 4) {
-      assert.match(input.text, /查看当前局面/);
+    if (attempts.length === 4) {
       movePiece(input, 'e3', 'e7');
       throw new Error('Codex disconnected after capturing');
     }
-    assert.match(input.text, /已经成功走棋/);
-    assert.equal(position.moveCommitted, true);
-    assert.equal(position.board[at('e7')], 'C');
-    assert.deepEqual(position.legal, []);
-    assert.throws(() => movePiece(input, 'b1', 'c3'), /本回合已走棋/);
-    if (attempt === 5) throw new DOMException('Codex took too long to finish', 'TimeoutError');
+    try { movePiece(input, 'b1', 'c3'); }
+    catch (error) { attempt.duplicateError = error.message; }
+    if (attempts.length === 5) throw new DOMException('Codex took too long to finish', 'TimeoutError');
   });
   const start = await request('/matches', { ...config, side: 'black' }, 201);
   assert.equal(start.humanSide, 'black');
@@ -156,14 +144,27 @@ test('black can retry and undo an AI capture that survived four failed attempts'
   assert.equal(opening.canUndo, false);
   await play(request, path, opening, 'h8', 'e8');
   const failed = await settled(path);
-  assert.equal(attempts, 5);
+  assert.equal(attempts.length, 5);
   assert.match(failed.error, /请重试/);
   assert.equal(failed.aiTurn, true);
   assert.equal(failed.lastMove.captured.type, 'p');
   await play(request, path, failed, 'e10', 'f10', 409);
   await request(path, { action: 'retry', revision: failed.revision });
   const capture = await settled(path);
-  assert.equal(attempts, 6);
+  assert.equal(attempts.length, 6);
+  assert.equal(attempts[0].text, '棋局开始');
+  assert.equal(attempts[1].text, '我已落子');
+  for (const { text, position } of attempts.slice(2, 4)) {
+    assert.match(text, /查看当前局面/);
+    assert.equal(position.moveCommitted, false);
+  }
+  for (const { text, position, duplicateError } of attempts.slice(4)) {
+    assert.match(text, /已经成功走棋/);
+    assert.equal(position.moveCommitted, true);
+    assert.equal(position.board[at('e7')], 'C');
+    assert.deepEqual(position.legal, []);
+    assert.match(duplicateError ?? '', /本回合已走棋/);
+  }
   assert.equal(capture.error, null);
   assert.equal(capture.aiTurn, false);
   assert.equal(capture.check, true);
