@@ -174,4 +174,11 @@ main.addEventListener('click', event => {
   else if (action) session.act(action, undefined, `[data-action="${action}"]`);
 });
 
+main.addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || selected === undefined || session.state.busy) return;
+  const point = selected;
+  selected = undefined;
+  render(`[data-point="${point}"]`);
+});
+
 session.loadModels();
