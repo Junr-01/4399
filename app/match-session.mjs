@@ -1,6 +1,6 @@
 import { selectModel } from './game-models.mjs';
 
-export function createMatchSession(id, draft, render, onSnapshot) {
+export function createMatchSession(id, draft, render, onSnapshot, { releaseOnHistoryNavigation = false } = {}) {
   const api = '/api/' + id;
   const state = {
     models: [], match: null, busy: false, error: '', actionError: '',
@@ -53,7 +53,8 @@ export function createMatchSession(id, draft, render, onSnapshot) {
         if (epoch !== currentEpoch) return;
         showError(failure);
       }
-      if (!state.match?.thinking || state.match.revision !== previous.revision || state.error) {
+      if (!state.match?.thinking || state.match.revision !== previous.revision
+        || state.match.side !== previous.side || state.error) {
         const active = document.activeElement;
         const action = active?.closest('.game-toolbar button')?.dataset.action;
         render(state.setup ? 'h1' : action ? `.game-toolbar button[data-action="${action}"]:enabled, .match-status`
@@ -135,13 +136,18 @@ export function createMatchSession(id, draft, render, onSnapshot) {
   }
 
   window.addEventListener('pagehide', event => {
-    if (event.persisted) return;
+    if (event.persisted && !releaseOnHistoryNavigation) return;
     leaving = true;
     epoch++;
     clearTimeout(poll);
     release(pendingId);
     release(state.match?.id);
   });
+  if (releaseOnHistoryNavigation) {
+    window.addEventListener('pageshow', event => {
+      if (event.persisted && leaving) window.location.reload();
+    });
+  }
 
   return { state, loadModels, start, act };
 }
