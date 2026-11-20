@@ -141,32 +141,37 @@ test('a versioned undo can include the just-committed AI reply only once', async
 });
 
 test('preserves a successful AI stone across three failed retries and a manual recovery', async t => {
-  let attempts = 0;
+  const attempts = [];
   const { request, settled } = await game(t, input => {
-    const position = input.callTool('get_position', {});
-    attempts++;
-    if (attempts === 1) {
-      assert.equal(input.text, '棋局开始');
+    const attempt = { text: input.text, position: input.callTool('get_position', {}) };
+    attempts.push(attempt);
+    if (attempts.length === 1) {
       input.callTool('place_stone', { row: 4, col: 4 });
       throw new Error('Codex disconnected after committing the move');
     }
-    if (attempts === 6) return input.callTool('place_stone', { row: 3, col: 4 });
-    assert.match(input.text, /已经成功落子/);
-    assert.equal(position.board[4][4], 'black');
-    assert.throws(() => input.callTool('place_stone', { row: 4, col: 5 }), /本回合已落子/);
-    if (attempts < 5) throw new Error('Codex failed to recover');
+    if (attempts.length === 6) return input.callTool('place_stone', { row: 3, col: 4 });
+    try { input.callTool('place_stone', { row: 4, col: 5 }); }
+    catch (error) { attempt.duplicateError = error.message; }
+    if (attempts.length < 5) throw new Error('Codex failed to recover');
   });
   const { id } = await request('/matches', { ...config, first: 'ai' }, 201);
   const path = '/matches/' + id;
   const failed = await settled(id);
-  assert.equal(attempts, 4);
+  assert.equal(attempts.length, 4);
   assert.match(failed.error, /请重试/);
   assert.deepEqual(failed.moves, [{ row: 4, col: 4, color: 'black' }]);
   await request(path, { action: 'move', row: 4, col: 5 }, 409);
   await request(path, { action: 'retry' });
-  assert.equal((await settled(id)).error, null);
-  assert.equal(attempts, 5);
-  assert.equal((await settled(id)).canUndo, false);
+  const recovered = await settled(id);
+  assert.equal(recovered.error, null);
+  assert.equal(recovered.canUndo, false);
+  assert.equal(attempts.length, 5);
+  assert.equal(attempts[0].text, '棋局开始');
+  for (const { text, position, duplicateError } of attempts.slice(1)) {
+    assert.match(text, /已经成功落子/);
+    assert.equal(position.board[4][4], 'black');
+    assert.match(duplicateError ?? '', /本回合已落子/);
+  }
   await request(path, { action: 'move', row: 4, col: 4 }, 400);
   await request(path, { action: 'move', row: 4, col: 5 });
   assert.equal((await settled(id)).moves.length, 3);
@@ -410,24 +415,91 @@ test('uses App Server tools, completes without text, and interrupts an undone tu
   assert.equal(event, 'undone-turn');
 });
 
-test('detects five in a row and undo reopens a finished match', async t => {
-  let turn = 0;
-  const { request, settled } = await game(t, input => input.callTool('place_stone', { row: 0, col: turn++ * 2 }));
-  const { id } = await request('/matches', config, 201);
-  const path = '/matches/' + id;
-  for (let col = 0; col < 4; col++) {
-    await request(path, { action: 'move', row: 4, col });
-    await settled(id);
+async function finishWithBlackMove(t, blackMoves, whiteMoves) {
+  let reply = 0;
+  const { request, settled } = await game(t, input => {
+    const [row, col] = whiteMoves[reply++];
+    return input.callTool('place_stone', { row, col });
+  });
+  let state = await request('/matches', config, 201);
+  const path = '/matches/' + state.id;
+  for (const [row, col] of blackMoves.slice(0, -1)) {
+    await request(path, { action: 'move', row, col, revision: state.revision });
+    state = await settled(state.id);
+    assert.equal(state.error, null);
+    assert.equal(state.result, null);
   }
-  const won = await request(path, { action: 'move', row: 4, col: 4 });
+  const [row, col] = blackMoves.at(-1);
+  const final = await request(path, { action: 'move', row, col, revision: state.revision });
+  return { final, path, request };
+}
+
+const whiteFiller = [[8, 0], [8, 2], [8, 4], [8, 6], [8, 8]];
+const winningPoints = points => points.map(({ row, col }) => [row, col]).sort();
+
+test('detects a horizontal five and undo reopens a finished match', async t => {
+  const line = [[4, 0], [4, 1], [4, 2], [4, 3], [4, 4]];
+  const { final: won, path, request } = await finishWithBlackMove(t, line, whiteFiller);
   assert.equal(won.result, 'black');
-  assert.equal(won.winning.length, 5);
+  assert.deepEqual(winningPoints(won.winning), line);
   assert.equal(won.thinking, false);
-  await request(path, { action: 'move', row: 5, col: 5 }, 409);
-  const reopened = await request(path, { action: 'undo' });
+  await request(path, { action: 'move', row: 5, col: 5, revision: won.revision }, 409);
+  const reopened = await request(path, { action: 'undo', revision: won.revision });
   assert.equal(reopened.result, null);
+  assert.deepEqual(reopened.winning, []);
   assert.equal(reopened.moves.length, 8);
 });
+
+for (const [name, blackMoves] of [
+  ['a vertical five', [[0, 4], [1, 4], [2, 4], [3, 4], [4, 4]]],
+  ['a descending diagonal five', [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4]]],
+  ['an ascending diagonal five', [[4, 0], [3, 1], [2, 2], [1, 3], [0, 4]]],
+  ['a six formed by closing a gap', [[4, 0], [4, 1], [4, 2], [4, 4], [4, 5], [4, 3]]],
+]) {
+  test(`detects ${name}`, async t => {
+    const { final } = await finishWithBlackMove(t, blackMoves, whiteFiller);
+    assert.equal(final.result, 'black');
+    assert.deepEqual(winningPoints(final.winning), [...blackMoves].sort());
+    assert.equal(final.thinking, false);
+  });
+}
+
+const drawnBoard = [
+  'BWBWBWBWB', 'BWBWBWBWB', 'WBWBWBWBW',
+  'WBWBWBWBW', 'BWBWBWBWB', 'BWBWBWBWB',
+  'WBWBWBWBW', 'WBWBWBWBW', 'BWBWBWBWB',
+];
+const winningFullBoard = [
+  'BWWWBWBWB', 'BWBWBWBWB', 'BBWBWBWBW',
+  'BBWBWBWBW', 'BWBWBWBWB', 'WWBWBWBWB',
+  'WBWBWBWBW', 'WBWBWBWBW', 'BWBWBWBWB',
+];
+
+for (const { name, board, last, result, winning } of [
+  { name: 'draws on a full board with no line', board: drawnBoard, last: [8, 8], result: 'draw', winning: [] },
+  {
+    name: 'awards the win when the final square completes a line',
+    board: winningFullBoard, last: [3, 0], result: 'black',
+    winning: [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0]],
+  },
+]) {
+  test(name, async t => {
+    const black = [];
+    const white = [];
+    for (const [row, line] of board.entries()) {
+      for (const [col, color] of [...line].entries()) {
+        if (row === last[0] && col === last[1]) continue;
+        (color === 'B' ? black : white).push([row, col]);
+      }
+    }
+    black.push(last);
+    const { final } = await finishWithBlackMove(t, black, white);
+    assert.equal(final.moves.length, 81);
+    assert.equal(final.result, result);
+    assert.deepEqual(winningPoints(final.winning), winning);
+    assert.equal(final.thinking, false);
+  });
+}
 
 test('publishes an AI win only after recovering and completing its turn', { timeout: 5000 }, async t => {
   const recovering = Promise.withResolvers();

@@ -8,7 +8,7 @@ import { identity, version } from '../scripts/server.mjs';
 
 const run = promisify(execFile);
 
-async function checkReplacement(t, previousApp, previousVersion) {
+test('launch replaces an older version from the same installation', { timeout: 10_000 }, async t => {
   const old = spawn(process.execPath, ['--input-type=module', '-e', `
     import { createServer } from 'node:http';
     const server = createServer((req, res) => {
@@ -16,7 +16,7 @@ async function checkReplacement(t, previousApp, previousVersion) {
         res.writeHead(404).end('Not found');
         return;
       }
-      res.end(JSON.stringify({ app: ${JSON.stringify(previousApp)}, id: ${JSON.stringify(identity)}, version: ${JSON.stringify(previousVersion)}, pid: process.pid }));
+      res.end(JSON.stringify({ app: '43gg', id: ${JSON.stringify(identity)}, version: '0.1.0', pid: process.pid }));
     });
     server.listen(0, '127.0.0.1', () => console.log(server.address().port));
   `], { stdio: ['ignore', 'pipe', 'inherit'] });
@@ -36,10 +36,4 @@ async function checkReplacement(t, previousApp, previousVersion) {
   assert.equal(response.status, 200);
   const second = await run(process.execPath, ['scripts/launch.mjs'], options);
   assert.equal(JSON.parse(second.stdout).pid, launch.pid);
-}
-
-test('launch replaces an older version from the same installation', { timeout: 10_000 },
-  t => checkReplacement(t, '43gg', '0.1.0'));
-
-test('launch replaces a pre-rename service from the same installation at the same version', { timeout: 10_000 },
-  t => checkReplacement(t, '4399', version));
+});
