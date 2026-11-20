@@ -9,6 +9,7 @@ import { createXiangqiApi } from './xiangqi.mjs';
 import { createChessApi } from './chess.mjs';
 import { createJunqiApi } from './junqi.mjs';
 import { createBanqiApi } from './banqi.mjs';
+import { createChineseCheckersApi } from './chinese-checkers.mjs';
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const identity = createHash('sha256').update(root).digest('hex').slice(0, 16);
@@ -19,10 +20,12 @@ const gameFactories = {
   chess: createChessApi,
   junqi: createJunqiApi,
   banqi: createBanqiApi,
+  'chinese-checkers': createChineseCheckersApi,
 };
 const sharedModules = new Map([
   ['/shared/junqi-board.mjs', 'junqi-board.mjs'],
   ['/shared/xiangqi-position.mjs', 'xiangqi-position.mjs'],
+  ['/shared/chinese-checkers-board.mjs', 'chinese-checkers-board.mjs'],
 ]);
 const mimeTypes = {
   '.html': 'text/html; charset=utf-8',

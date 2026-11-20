@@ -1,0 +1,115 @@
+.checkers-page {
+  --checkers-paper: #f8f9f5;
+  --checkers-muted: #5e6b59;
+  --checkers-line: #dce4d7;
+  --checkers-dark: #2f4839;
+  display: block;
+  height: auto;
+  min-height: 100svh;
+  background: var(--checkers-paper);
+}
+
+#chinese-checkers { display: block; padding: 18px 24px 28px; }
+.checkers-shell { width: 100%; margin-inline: auto; }
+.checkers-config { max-width: 830px; }
+.checkers-playing { max-width: min(570px, max(350px, calc((100svh - 164px) / 1.1))); }
+.checkers-config h1 { margin: 2px 0 20px; font-size: clamp(29px, 5.2vw, 39px); font-weight: 750; letter-spacing: -.055em; }
+.checkers-config h1:focus { outline: 0; }
+.checkers-playing .game-toolbar { margin-bottom: 12px; }
+.checkers-playing .match-status { min-height: 24px; padding-block: 3px; font-size: 13px; }
+
+.checkers-setup {
+  display: grid;
+  grid-template-columns: minmax(285px, .9fr) minmax(0, 1.25fr);
+  align-items: center;
+  gap: clamp(14px, 3vw, 30px);
+}
+
+.checkers-form { min-width: 0; padding: clamp(16px, 3.3vw, 26px); border: 1px solid var(--checkers-line); border-radius: 17px; background: #ffffffd6; box-shadow: var(--shadow); }
+.checkers-form h2 { margin: 0 0 18px; font-size: 19px; letter-spacing: -.03em; }
+.checkers-form fieldset { min-width: 0; margin: 0; border: 0; padding: 0; }
+.checkers-form legend, .checkers-field > span { display: block; margin-bottom: 6px; padding: 0; color: var(--checkers-muted); font-size: 12px; font-weight: 570; }
+.count-options { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; }
+.count-options label { position: relative; cursor: pointer; }
+.count-options input { position: absolute; opacity: 0; }
+.count-options span { display: grid; min-height: 36px; place-items: center; padding: 4px; border: 1px solid var(--checkers-line); border-radius: 8px; background: #fff; font-size: 12px; white-space: nowrap; }
+.count-options input:checked + span { border-color: #567259; color: #294833; background: #eaf2e7; font-weight: 700; }
+.count-options input:focus-visible + span { outline: 2px solid var(--checkers-dark); outline-offset: 2px; }
+.count-options input:disabled + span { opacity: .55; cursor: default; }
+.checkers-note { margin: 8px 0 14px; color: var(--checkers-muted); font-size: 11px; line-height: 1.5; }
+.checkers-models { display: grid; gap: 12px; }
+.checkers-field select { width: 100%; min-height: 40px; padding: 7px 10px; border: 1px solid var(--checkers-line); border-radius: 8px; background: #f8faf7; color: var(--ink); font: inherit; font-size: 13px; }
+.checkers-start { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 42px; margin-top: 16px; padding: 8px 12px; border-radius: 8px; color: #fff; background: var(--checkers-dark); font-size: 13px; font-weight: 650; }
+.checkers-start:hover:not(:disabled) { background: #44654e; }
+.checkers-start:disabled { opacity: .5; cursor: default; }
+.checkers-return { display: block; margin: 6px auto -4px; padding: 7px; color: var(--checkers-muted); font-size: 12px; }
+.checkers-return:hover:not(:disabled) { color: var(--ink); text-decoration: underline; }
+.checkers-error { margin: 10px 0 8px; color: #714232; font-size: 12px; line-height: 1.5; }
+
+.seat-0 { --peg: #c56555; --peg-edge: #934739; --camp: #f1dbce; }
+.seat-1 { --peg: #c38a38; --peg-edge: #865c1d; --camp: #f3e5c3; }
+.seat-2 { --peg: #6f9556; --peg-edge: #4d6d38; --camp: #e3e9cc; }
+.seat-3 { --peg: #668bbd; --peg-edge: #436696; --camp: #dce6f0; }
+.seat-4 { --peg: #a27fa8; --peg-edge: #725577; --camp: #ebe0ed; }
+.seat-5 { --peg: #508e86; --peg-edge: #376f68; --camp: #d9ebe1; }
+
+.checkers-board {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  aspect-ratio: 500 / 550;
+  border-radius: 17px;
+  outline: 1px solid #e9e0cf;
+  background: radial-gradient(ellipse at 36% 22%, #fcf9ef, #f3ecd9);
+  box-shadow: 0 14px 32px #59452913;
+}
+
+.checkers-board-art { display: block; width: 100%; height: 100%; pointer-events: none; }
+.board-star { fill: #f2e7cf; stroke: #f2e7cf; stroke-width: 38px; stroke-linejoin: round; }
+.board-camp { fill: var(--camp); stroke: var(--camp); stroke-width: 31px; stroke-linejoin: round; }
+.move-path-outline, .move-path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.move-path-outline { stroke: #fcf8ed; stroke-width: 10px; }
+.move-path { stroke: #284e42; stroke-width: 4px; }
+.move-path.is-swap { stroke-dasharray: 8px 8px; }
+
+.checkers-hole {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: 7%;
+  aspect-ratio: 1;
+  padding: 0;
+  border-radius: 50%;
+  translate: -50% -50%;
+}
+
+.checkers-hole::before, .checkers-hole::after { position: absolute; border-radius: 50%; pointer-events: none; content: ""; }
+.checkers-hole::before { inset: 33%; border: 1px solid #bbad93; background: #ac9c7d52; box-shadow: inset 0 1px 2px #75674b4f, 0 1px #fff7; }
+.checkers-hole.peg::before { inset: 14%; border-color: var(--peg-edge); background: radial-gradient(circle at 37% 28%, #ffffffa6 0%, #ffffff00 43%), var(--peg); box-shadow: inset 0 -2px 3px #16160d26, 0 2px 3px #4c36234b; }
+.checkers-hole.recent-start::after { inset: 12%; border: 2px dashed #385e51; background: #faf8eb73; }
+.checkers-hole.recent-start.peg::after { inset: 4%; background: transparent; }
+.checkers-hole.recent-end::after { inset: 3%; border: 2px solid #284e42; box-shadow: 0 0 0 1px #fbf8e9; }
+.checkers-hole.recent-via::before { inset: 32%; border: 2px solid #284e42; background: #fff9e8; box-shadow: none; }
+.checkers-hole.destination::after { inset: 25%; border: 2px solid #37634f; background: #74a67cba; box-shadow: 0 0 0 2px #fbf8e9; }
+.checkers-hole.destination.peg::after { inset: 3%; background: transparent; }
+.checkers-hole.chosen::after { inset: 3%; border: 2px solid #223c2d; box-shadow: 0 0 0 1px #fff9e8; }
+button.checkers-hole:is(:hover, :focus-visible) { z-index: 1; outline: 2px solid #324f3f; outline-offset: -1px; }
+
+.checkers-seats { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin: 3px 0 0; padding: 0; list-style: none; }
+.checkers-seat { display: flex; align-items: center; gap: 5px; padding: 5px 8px; border: 1px solid transparent; border-radius: 15px; color: var(--checkers-muted); font-size: 11px; white-space: nowrap; }
+.checkers-seat[aria-current] { border-color: var(--peg-edge); color: var(--ink); background: var(--camp); font-weight: 700; }
+.seat-dot { width: 8px; height: 8px; border: 1px solid var(--peg-edge); border-radius: 50%; background: var(--peg); }
+
+@media (max-width: 650px) {
+  .checkers-config { max-width: 470px; }
+  .checkers-setup { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+  .checkers-setup > * { grid-area: 1 / 1; }
+  .checkers-form { z-index: 1; width: min(340px, calc(100% - 20px)); margin-block: 10px; }
+  .checkers-setup .checkers-board { opacity: .7; }
+}
+
+@media (max-width: 420px) {
+  #chinese-checkers { padding: 12px 14px 24px; }
+  .checkers-config h1 { margin-bottom: 14px; }
+  .checkers-seat { gap: 4px; padding-inline: 5px; }
+}

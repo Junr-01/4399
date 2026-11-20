@@ -18,7 +18,8 @@ function cancelTurn(match) {
 }
 
 function advanceRevision(match, afterReply = false) {
-  match.beforeReply = afterReply ? match.revision : null;
+  if (afterReply) match.beforeReplies ??= match.revision;
+  else match.beforeReplies = null;
   match.revision++;
 }
 
@@ -27,7 +28,7 @@ export function recordAiMove(match, turn) {
   advanceRevision(match, true);
 }
 
-function runTurnTask(match, play, failureMessage) {
+function runTurnTask(match, play, failureMessage, onComplete) {
   const turn = new AbortController();
   match.turn = turn;
   match.error = null;
@@ -35,24 +36,29 @@ function runTurnTask(match, play, failureMessage) {
     if (turn.signal.aborted) return;
     try {
       await play(turn.signal);
+      if (match.turn !== turn) return;
+      match.turn = null;
+      onComplete?.(match);
     } catch {
-      if (match.turn === turn) match.error = failureMessage;
+      if (!turn.signal.aborted && (!match.turn || match.turn === turn)) match.error = failureMessage;
     } finally {
       if (match.turn === turn) match.turn = null;
     }
   });
 }
 
-export function runToolTurn(match, turn, { opening, callTool, recoveryMessage }) {
+export function runToolTurn(match, turn, {
+  opening, callTool, recoveryMessage, opponent = match.opponent, turnMessage = '我已落子', onComplete,
+}) {
   const message = match.aiTurn ? recoveryMessage() : match.undoPending ? '我悔棋了，已经重新落子'
-    : opening ? '棋局开始' : '我已落子';
+    : opening ? '棋局开始' : turnMessage;
   match.aiTurn = turn;
   match.undoPending = false;
   runTurnTask(match, async signal => {
-    await completeToolTurn(match.opponent, turn, { message, callTool, recoveryMessage }, signal);
+    await completeToolTurn(opponent, turn, { message, callTool, recoveryMessage }, signal);
     signal.throwIfAborted();
     match.aiTurn = null;
-  }, 'AI 回合未能完成，请重试。');
+  }, 'AI 回合未能完成，请重试。', onComplete);
 }
 
 async function completeToolTurn(opponent, turn, { message, callTool, recoveryMessage }, signal) {
@@ -98,6 +104,7 @@ async function readInput(request) {
 
 export function createMatchApi(name, codex, {
   configure, create, snapshot, scheduleTurn, play, undo, initialize, prepare,
+  openOpponent = (config, options) => codex.openMatch(config, name, options),
   reserveId = false, allowUnversioned = false,
 }) {
   const matches = new Map();
@@ -113,11 +120,11 @@ export function createMatchApi(name, codex, {
 
   function applyAction(match, input) {
     const { action, revision } = input;
-    // Pause and undo may arrive just after the AI answers the position shown.
-    const canFollowReply = action === 'pause' || action === 'undo';
+    // Pause and undo may arrive after one or more AI replies to the displayed turn.
+    const canFollowReplies = Number.isInteger(revision) && (action === 'pause' || action === 'undo')
+      && match.beforeReplies !== null && revision >= match.beforeReplies && revision < match.revision;
     if (!(allowUnversioned && revision === undefined)
-      && (!Number.isInteger(revision) || (revision !== match.revision
-        && !(canFollowReply && revision === match.beforeReply)))) {
+      && (!Number.isInteger(revision) || (revision !== match.revision && !canFollowReplies))) {
       throw new GameError(409, '棋局状态已更新，请重新操作。');
     }
     if (action === 'pause' || action === 'resume') {
@@ -204,8 +211,8 @@ export function createMatchApi(name, codex, {
     const opponentOptions = prepare(config, id, state);
     const match = {
       ...state, id, config, lastSeen: Date.now(), paused: false,
-      revision: 0, beforeReply: null, aiTurn: null, undoPending: false,
-      turn: null, error: null, task: Promise.resolve(), opponent: codex.openMatch(config, name, opponentOptions),
+      revision: 0, beforeReplies: null, aiTurn: null, undoPending: false,
+      turn: null, error: null, task: Promise.resolve(), opponent: openOpponent(config, opponentOptions),
     };
     if (old) remove(old.id);
     matches.set(match.id, match);
